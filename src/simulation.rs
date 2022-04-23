@@ -24,6 +24,13 @@ pub struct HysteresisConfig {
 }
 
 #[derive(Debug)]
+pub struct PhaseConfig {
+    pub t_min: f64,
+    pub t_max: f64,
+    pub t_step: f64,
+}
+
+#[derive(Debug)]
 pub struct Simulation {
     network: Network,
     size: usize,
@@ -79,9 +86,30 @@ impl Simulation {
         let h = self.config.h;
         let m = self.calc_magnetisation();
 
-        eprintln!("H: {}, M: {}, deg_MSE: {}, deg_avg: {}", h, m, self.network.get_deg_mse(4f64), self.network.get_avg_deg());
+        eprintln!(
+            "H: {}, M: {}, deg_MSE: {}, deg_avg: {}",
+            h,
+            m,
+            self.network.get_deg_mse(4f64),
+            self.network.get_avg_deg()
+        );
 
         vec![h, m]
+    }
+
+    pub fn snapshot_phase(&self) -> Vec<f64> {
+        let temp = self.config.temp;
+        let m = self.calc_magnetisation();
+
+        eprintln!(
+            "T: {}, M: {}, deg_MSE: {}, deg_avg: {}",
+            temp,
+            m,
+            self.network.get_deg_mse(4f64),
+            self.network.get_avg_deg()
+        );
+
+        vec![temp, m]
     }
 
     pub fn simulate_hysteresis(
@@ -122,6 +150,43 @@ impl Simulation {
             // step
             self.config.h =
                 ((self.config.h + step_direction * config.h_step) * precision).floor() / precision;
+        }
+
+        Ok(())
+    }
+
+    pub fn simulate_phase(
+        &mut self,
+        data_dist_path: &Path,
+        config: PhaseConfig,
+    ) -> Result<(), Box<dyn Error>> {
+        let mut data_writer = Writer::from_path(data_dist_path)?;
+        // Write header
+        data_writer.write_record(&["T", "M"])?;
+        data_writer.flush()?;
+
+        let precision = 1e6f64;
+
+        for x in 0..self.network.size {
+            for y in 0..self.network.size {
+                self.network.spins[(x, y)] = 1;
+            }
+        }
+
+        while self.config.temp <= config.t_max {
+            // simulate
+            for _ in 0..self.config.equilibrium_steps {
+                self.mc_iter();
+            }
+
+            self.network.plot_spins()?;
+
+            // save
+            data_writer.serialize(self.snapshot_phase())?;
+            data_writer.flush()?;
+
+            // step
+            self.config.temp = ((self.config.temp + config.t_step) * precision).floor() / precision;
         }
 
         Ok(())

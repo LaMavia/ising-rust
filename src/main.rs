@@ -44,6 +44,40 @@ fn main() -> Result<(), Box<dyn Error>> {
                 Err(e) => Err(e),
             }
         }
+        Some(simulation_type) if simulation_type.as_str() == "phase" => {
+            let args = cli::ArgsPhase::parse_from(env::args().skip(1));
+
+            let mut s = Simulation::new(
+                args.size,
+                SimulationConfig {
+                    temp: args.t_min,
+                    h: 0f64,
+                    j: 1f64,
+                    kb: 1f64,
+                    equilibrium_steps: args.eq_steps,
+                    network_type: args.network_type,
+                },
+            );
+
+            match s.simulate_phase(
+                Path::new(&format!("{}.csv", args.name)),
+                simulation::PhaseConfig {
+                    t_min: args.t_min,
+                    t_max: args.t_max,
+                    t_step: args.t_step,
+                },
+            ) {
+                Ok(_) => {
+                    eprintln!("simulation done!");
+                    Ok(format!(
+                        "phase {name} {plot_title}",
+                        name = args.name,
+                        plot_title = format!("size={size},eq_steps={eq_steps},network_type={network_type},T_step={t_step}", size=args.size, eq_steps=args.eq_steps, network_type=args.network_type.to_string(), t_step=args.t_step)
+                    ))
+                }
+                Err(e) => Err(e),
+            }
+        }
         x => {
             eprintln!("unknown simulation type {:?}", x);
             Err(Box::new(ArgError {}))
