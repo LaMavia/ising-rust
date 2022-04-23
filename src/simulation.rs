@@ -3,9 +3,9 @@ use std::{error::Error, path::Path};
 use csv::Writer;
 use rand::Rng;
 
-use crate::network::Network;
+use crate::network::{Network, NetworkType};
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct SimulationConfig {
     pub temp: f64,
     pub h: f64,
@@ -13,6 +13,7 @@ pub struct SimulationConfig {
     pub kb: f64,
 
     pub equilibrium_steps: usize,
+    pub network_type: NetworkType,
 }
 
 #[derive(Default, Debug)]
@@ -32,7 +33,7 @@ pub struct Simulation {
 impl Simulation {
     pub fn new(size: usize, config: SimulationConfig) -> Self {
         Simulation {
-            network: Network::new(size),
+            network: Network::new(size, &config.network_type),
             size,
             config,
         }
@@ -78,7 +79,7 @@ impl Simulation {
         let h = self.config.h;
         let m = self.calc_magnetisation();
 
-        println!("H: {}, M: {}", h, m);
+        eprintln!("H: {}, M: {}, deg_MSE: {}, deg_avg: {}", h, m, self.network.get_deg_mse(4f64), self.network.get_avg_deg());
 
         vec![h, m]
     }
@@ -112,7 +113,7 @@ impl Simulation {
                 self.mc_iter();
             }
 
-            // self.network.plot_spins();
+            self.network.plot_spins()?;
 
             // save
             data_writer.serialize(self.snapshot_hysteresis())?;

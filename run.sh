@@ -4,7 +4,9 @@
 rm "$1.csv" 2> /dev/null
 
 # run
-time cargo run --release "$1"
+plot_args=$(cargo run --release -- "$@")
+
+printf "args: %s\n" "$plot_args"
 
 # plot
-python ./plot.py "$1"
+if [[ -n "$plot_args" ]]; then python ./plot.py $plot_args; fi

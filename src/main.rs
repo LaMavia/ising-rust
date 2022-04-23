@@ -1,39 +1,57 @@
+mod cli;
 mod matrix;
 mod network;
 mod simulation;
 
-use std::{env, path::Path};
+use std::{env, error::Error, io, path::Path};
 
+use clap::*;
 use simulation::{Simulation, SimulationConfig};
 
-fn main() {
+use crate::cli::ArgError;
+
+fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
 
-    match args.as_slice() {
-        [ _, name ] if name.len() > 0 => {
+    let result: Result<String, Box<dyn Error>> = match args.get(1) {
+        Some(simulation_type) if simulation_type.as_str() == "hys" => {
+            let args = cli::ArgsHysteresis::parse_from(env::args().skip(1));
+
             let mut s = Simulation::new(
-                500,
+                args.size,
                 SimulationConfig {
-                    temp: 0.5f64,
+                    temp: args.temp,
                     h: 0f64,
                     j: 1f64,
                     kb: 1f64,
-                    equilibrium_steps: 5,
+                    equilibrium_steps: args.eq_steps,
+                    network_type: args.network_type,
                 },
             );
 
             match s.simulate_hysteresis(
-                Path::new(&format!("{}.csv", name)),
+                Path::new(&format!("{}.csv", args.name)),
                 simulation::HysteresisConfig {
-                    h_min: -2.2f64,
-                    h_max: 2.2_f64,
-                    h_step: 0.01f64, // 0.001_f64,
+                    h_min: args.h_min,
+                    h_max: args.h_max,
+                    h_step: args.h_step,
                 },
             ) {
-                Ok(_) => println!("simulation done!"),
-                Err(e) => println!("{e}"),
+                Ok(_) => {
+                    eprintln!("simulation done!");
+                    Ok(format!("hys {name} {plot_title}", name = args.name, plot_title=format!("size={size},T={temp},eq_steps={eq_steps},network_type={network_type},H_step={h_step}", size=args.size, temp=args.temp, eq_steps=args.eq_steps, network_type=args.network_type.to_string(),h_step=args.h_step)))
+                }
+                Err(e) => Err(e),
             }
         }
-        x => println!("error: {:?}", x),
+        x => {
+            eprintln!("unknown simulation type {:?}", x);
+            Err(Box::new(ArgError {}))
+        }
+    };
+
+    match result {
+        Err(e) => Err(e),
+        Ok(r) => Ok(println!("{}", r)),
     }
 }
