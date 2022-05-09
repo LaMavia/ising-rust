@@ -3,8 +3,10 @@ use std::{error::Error, io, str::FromStr};
 use crate::matrix::{index_of_pos, Matrix};
 use plotters::prelude::*;
 use rand::prelude::*;
+use rand_chacha::ChaCha20Rng;
+use serde::Serialize;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub enum NetworkType {
     Regular,
     Irregular,
@@ -37,7 +39,7 @@ impl ToString for NetworkType {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Network {
     pub size: usize,
     pub spins: Matrix<i8>,
@@ -45,73 +47,92 @@ pub struct Network {
 }
 
 impl Network {
-    fn make_spins(size: usize) -> Matrix<i8> {
-        Matrix::new(size, size, |_| {
-            if thread_rng().gen_bool(0.5f64) {
-                1
-            } else {
-                -1
+    fn make_spins(size: usize, rand: &mut ChaCha20Rng) -> Matrix<i8> {
+        let mut m = Matrix::new(size, size, |_| 1);
+
+        for x in 0..size {
+            for y in 0..size {
+                m[(x, y)] = if rand.gen_bool(0.5) { 1 } else { -1 };
             }
-        })
+        }
+
+        m
     }
 
-    fn make_lattice_regular(size: usize) -> Matrix<Vec<usize>> {
-        Matrix::new(size, size, |((size, _), (x, y))| {
-            let x = x as i64;
-            let y = y as i64;
+    fn make_lattice_regular(size: usize, rng: &mut ChaCha20Rng) -> Matrix<Vec<usize>> {
+        let mut m = Matrix::new(size, size, |_| vec![]);
 
-            vec![(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)]
+        for ix in 0..size {
+            for iy in 0..size {
+                for _ in 0..4 {
+                    rng.gen::<i64>();
+                }
+
+                let x = ix as i64;
+                let y = iy as i64;
+
+                m[(ix, iy)] = vec![(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)]
+                    .into_iter()
+                    .map(|(x, y)| {
+                        index_of_pos(
+                            size,
+                            (
+                                x.rem_euclid(size as i64) as usize,
+                                y.rem_euclid(size as i64) as usize,
+                            ),
+                        )
+                    })
+                    .collect();
+            }
+        }
+
+        m
+    }
+
+    fn make_lattice_irregular(size: usize, rng: &mut ChaCha20Rng) -> Matrix<Vec<usize>> {
+        let mut m = Matrix::new(size, size, |_| vec![]);
+
+        for ix in 0..size {
+            for iy in 0..size {
+                let x = ix as i64;
+                let y = iy as i64;
+
+                for (pos_x, pos_y) in vec![
+                    (x - 1, y),
+                    (x + 1, y),
+                    (x, y - 1),
+                    (x, y + 1),
+                    (x - 1, y - 1),
+                    (x - 1, y + 1),
+                    (x + 1, y - 1),
+                    (x + 1, y + 1),
+                ]
                 .into_iter()
-                .map(|(x, y)| {
-                    index_of_pos(
+                {
+                    if !rng.gen_bool(0.5f64) {
+                        continue;
+                    }
+                    m[(ix, iy)].push(index_of_pos(
                         size,
                         (
-                            x.rem_euclid(size as i64) as usize,
-                            y.rem_euclid(size as i64) as usize,
+                            pos_x.rem_euclid(size as i64) as usize,
+                            pos_y.rem_euclid(size as i64) as usize,
                         ),
-                    )
-                })
-                .collect()
-        })
+                    ));
+                }
+            }
+        }
+
+        m
     }
 
-    fn make_lattice_irregular(size: usize) -> Matrix<Vec<usize>> {
-        Matrix::new(size, size, |((size, _), (x, y))| {
-            let x = x as i64;
-            let y = y as i64;
-
-            vec![
-                (x - 1, y),
-                (x + 1, y),
-                (x, y - 1),
-                (x, y + 1),
-                (x - 1, y - 1),
-                (x - 1, y + 1),
-                (x + 1, y - 1),
-                (x + 1, y + 1),
-            ]
-            .into_iter()
-            .filter(|_| thread_rng().gen_bool(0.5f64))
-            .map(|(x, y)| {
-                index_of_pos(
-                    size,
-                    (
-                        x.rem_euclid(size as i64) as usize,
-                        y.rem_euclid(size as i64) as usize,
-                    ),
-                )
-            })
-            .collect()
-        })
-    }
-
-    pub fn new(size: usize, network_type: &NetworkType) -> Self {
+    pub fn new(size: usize, network_type: &NetworkType, rand: &mut ChaCha20Rng) -> Self {
         Network {
             size,
-            spins: Network::make_spins(size),
+            spins: Network::make_spins(size, rand),
             lattice: match network_type {
-                NetworkType::Regular => Network::make_lattice_regular(size),
-                NetworkType::Irregular => Network::make_lattice_irregular(size),
+                NetworkType::Regular => Network::make_lattice_regular(size, rand),
+                NetworkType::Irregular => Network::make_lattice_irregular(size, rand),
             },
         }
     }

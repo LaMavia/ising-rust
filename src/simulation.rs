@@ -2,6 +2,7 @@ use std::{error::Error, path::Path};
 
 use csv::Writer;
 use rand::Rng;
+use rand_chacha::ChaCha20Rng;
 
 use crate::network::{Network, NetworkType};
 
@@ -38,9 +39,9 @@ pub struct Simulation {
 }
 
 impl Simulation {
-    pub fn new(size: usize, config: SimulationConfig) -> Self {
+    pub fn new(size: usize, config: SimulationConfig, rand: &mut ChaCha20Rng) -> Self {
         Simulation {
-            network: Network::new(size, &config.network_type),
+            network: Network::new(size, &config.network_type, rand),
             size,
             config,
         }
@@ -58,27 +59,26 @@ impl Simulation {
             / (self.network.size.pow(2) as f64)
     }
 
-    fn evolve_spin(&mut self, (x, y): (usize, usize)) {
+    fn evolve_spin(&mut self, (x, y): (usize, usize), rng: &mut ChaCha20Rng) {
         let delta_h = self.calc_delta_h((x, y));
+        let distortion = rng.gen::<f64>();
 
-        if delta_h <= 0f64
-            || rand::random::<f64>() < (-delta_h / (self.config.kb * self.config.temp)).exp()
-        {
+        if delta_h <= 0f64 || distortion < (-delta_h / (self.config.kb * self.config.temp)).exp() {
             // println!("flipping ({x}, {y})!");
             self.network.flip_spin((x, y))
         }
     }
 
-    pub fn mc_step(&mut self) {
-        let x = rand::thread_rng().gen_range(0..self.network.size);
-        let y = rand::thread_rng().gen_range(0..self.network.size);
+    pub fn mc_step(&mut self, rng: &mut ChaCha20Rng) {
+        let x = rng.gen_range(0..self.network.size);
+        let y = rng.gen_range(0..self.network.size);
 
-        self.evolve_spin((x, y));
+        self.evolve_spin((x, y), rng);
     }
 
-    pub fn mc_iter(&mut self) {
+    pub fn mc_iter(&mut self, rng: &mut ChaCha20Rng) {
         for _ in 0..(self.network.size.pow(2)) {
-            self.mc_step()
+            self.mc_step(rng)
         }
     }
 
@@ -116,6 +116,7 @@ impl Simulation {
         &mut self,
         data_dist_path: &Path,
         config: HysteresisConfig,
+        rand: &mut ChaCha20Rng,
     ) -> Result<(), Box<dyn Error>> {
         let mut data_writer = Writer::from_path(data_dist_path)?;
         // Write header
@@ -138,7 +139,7 @@ impl Simulation {
 
             // simulate
             for _ in 0..self.config.equilibrium_steps {
-                self.mc_iter();
+                self.mc_iter(rand);
             }
 
             self.network.plot_spins()?;
@@ -159,6 +160,7 @@ impl Simulation {
         &mut self,
         data_dist_path: &Path,
         config: PhaseConfig,
+        rand: &mut ChaCha20Rng,
     ) -> Result<(), Box<dyn Error>> {
         let mut data_writer = Writer::from_path(data_dist_path)?;
         // Write header
@@ -176,7 +178,7 @@ impl Simulation {
         while self.config.temp <= config.t_max {
             // simulate
             for _ in 0..self.config.equilibrium_steps {
-                self.mc_iter();
+                self.mc_iter(rand);
             }
 
             self.network.plot_spins()?;

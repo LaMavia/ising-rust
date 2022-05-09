@@ -1,17 +1,20 @@
 mod cli;
+mod descriptor;
 mod matrix;
 mod network;
 mod simulation;
 
-use std::{env, error::Error, io, path::Path};
+use std::{env, error::Error, fs::create_dir_all, io, path::Path};
 
 use clap::*;
+use rand::SeedableRng;
 use simulation::{Simulation, SimulationConfig};
 
 use crate::cli::ArgError;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
+    let mut rand = rand_chacha::ChaCha20Rng::seed_from_u64(2);
 
     let result: Result<String, Box<dyn Error>> = match args.get(1) {
         Some(simulation_type) if simulation_type.as_str() == "hys" => {
@@ -27,6 +30,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     equilibrium_steps: args.eq_steps,
                     network_type: args.network_type,
                 },
+                &mut rand,
             );
 
             match s.simulate_hysteresis(
@@ -36,6 +40,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     h_max: args.h_max,
                     h_step: args.h_step,
                 },
+                &mut rand,
             ) {
                 Ok(_) => {
                     eprintln!("simulation done!");
@@ -46,7 +51,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         Some(simulation_type) if simulation_type.as_str() == "phase" => {
             let args = cli::ArgsPhase::parse_from(env::args().skip(1));
-
             let mut s = Simulation::new(
                 args.size,
                 SimulationConfig {
@@ -57,17 +61,31 @@ fn main() -> Result<(), Box<dyn Error>> {
                     equilibrium_steps: args.eq_steps,
                     network_type: args.network_type,
                 },
+                &mut rand,
             );
 
+            /* Todo: 
+                1. join into a single process for comparison;
+                2. think of a reasonable directory structure
+            */
+
+            let data_path_str = format!(
+                "data/{}/simulation_type/size={}_step={}_max={}/data.csv",
+                args.name, args.size, args.t_step, args.t_max
+            );
+            let data_path = Path::new(&data_path_str);
+
             match s.simulate_phase(
-                Path::new(&format!("{}.csv", args.name)),
+                data_path,
                 simulation::PhaseConfig {
                     t_min: args.t_min,
                     t_max: args.t_max,
                     t_step: args.t_step,
                 },
+                &mut rand,
             ) {
                 Ok(_) => {
+                    create_dir_all(data_path)?;
                     eprintln!("simulation done!");
                     Ok(format!(
                         "phase {name} {plot_title}",

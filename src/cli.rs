@@ -5,8 +5,9 @@ use std::{
 
 use crate::network::NetworkType;
 use clap::Parser;
+use serde::Serialize;
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Serialize)]
 pub struct ArgsHysteresis {
     #[clap(short, long)]
     pub name: String,
@@ -33,7 +34,7 @@ pub struct ArgsHysteresis {
     pub h_step: f64,
 }
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Serialize)]
 pub struct ArgsPhase {
     #[clap(short, long)]
     pub name: String,

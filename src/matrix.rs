@@ -1,8 +1,11 @@
 use std::ops::{Index, IndexMut};
 
-#[derive(Debug)]
+use serde::Serialize;
+
+#[derive(Debug, Serialize)]
 pub struct Matrix<T> {
     width: usize,
+    height: usize,
     xs: Vec<T>,
 }
 
@@ -10,6 +13,7 @@ impl<T> Matrix<T> {
     pub fn new(width: usize, height: usize, f: fn(((usize, usize), (usize, usize))) -> T) -> Self {
         Matrix {
             width,
+            height,
             xs: vec![0; width * height]
                 .into_iter()
                 .enumerate()
@@ -23,7 +27,7 @@ impl<T> Matrix<T> {
     }
 
     pub fn enumerator<'a>(&'a self) -> MatrixEnumerator<'a, T> {
-      MatrixEnumerator::new(self)
+        MatrixEnumerator::new(self)
     }
 }
 
@@ -56,29 +60,32 @@ impl<T> IndexMut<(usize, usize)> for Matrix<T> {
 }
 
 pub struct MatrixEnumerator<'a, T> {
-  matrix: &'a Matrix<T>,
-  i: usize,
+    matrix: &'a Matrix<T>,
+    i: usize,
 }
 
 impl<'a, T> MatrixEnumerator<'a, T> {
-  pub fn new(matrix: &'a Matrix<T>) -> Self {
-    MatrixEnumerator { matrix, i: 0 }
-  }
+    pub fn new(matrix: &'a Matrix<T>) -> Self {
+        MatrixEnumerator { matrix, i: 0 }
+    }
 }
 
 impl<'a, T> Iterator for MatrixEnumerator<'a, T> {
-  type Item = ((usize, usize), &'a T);
+    type Item = ((usize, usize), &'a T);
 
-  fn next(&mut self) -> Option<Self::Item> {
-    if self.i >= self.matrix.xs.len() {
-      None
-  } else {
-    let result = (pos_of_index(self.matrix.width, self.i), &self.matrix[self.i]);
-    self.i += 1;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.i >= self.matrix.xs.len() {
+            None
+        } else {
+            let result = (
+                pos_of_index(self.matrix.width, self.i),
+                &self.matrix[self.i],
+            );
+            self.i += 1;
 
-    Some(result)
-  }
-  }
+            Some(result)
+        }
+    }
 }
 
 pub struct MatrixIterator<'a, T> {
