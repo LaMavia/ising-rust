@@ -51,7 +51,7 @@ impl Simulation {
         let neighbour_spin_sum = self.network.get_neighbours((x, y)).iter().sum::<i8>() as f64;
         let sk = self.network.get_spin((x, y)) as f64;
 
-        sk * (self.config.j * neighbour_spin_sum + 2f64 * self.config.h)
+        sk * 2f64 * (self.config.j * neighbour_spin_sum + self.config.h)
     }
 
     pub fn calc_magnetisation(&self) -> f64 {
@@ -126,7 +126,7 @@ impl Simulation {
         let mut saw_max = false;
         let mut step_direction = 1f64;
 
-        let precision = 1e6f64;
+        let precision = 1e4f64;
 
         while !(self.config.h >= config.h_max && saw_max) {
             let is_max = self.config.h >= config.h_max || self.config.h <= config.h_min;
@@ -142,7 +142,7 @@ impl Simulation {
                 self.mc_iter(rand);
             }
 
-            self.network.plot_spins()?;
+            // self.network.plot_spins()?;
 
             // save
             data_writer.serialize(self.snapshot_hysteresis())?;
@@ -167,7 +167,7 @@ impl Simulation {
         data_writer.write_record(&["T", "M"])?;
         data_writer.flush()?;
 
-        let precision = 1e6f64;
+        let precision = 1e4f64;
 
         for x in 0..self.network.size {
             for y in 0..self.network.size {
@@ -181,7 +181,7 @@ impl Simulation {
                 self.mc_iter(rand);
             }
 
-            self.network.plot_spins()?;
+            // self.network.plot_spins()?;
 
             // save
             data_writer.serialize(self.snapshot_phase())?;

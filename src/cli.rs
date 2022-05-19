@@ -9,9 +9,6 @@ use serde::Serialize;
 
 #[derive(Parser, Debug, Serialize)]
 pub struct ArgsHysteresis {
-    #[clap(short, long)]
-    pub name: String,
-
     #[clap(short, long, default_value_t = 100)]
     pub size: usize,
 
@@ -36,17 +33,14 @@ pub struct ArgsHysteresis {
 
 #[derive(Parser, Debug, Serialize)]
 pub struct ArgsPhase {
-    #[clap(short, long)]
-    pub name: String,
-
     #[clap(short, long, default_value_t = 100)]
     pub size: usize,
 
     #[clap(short, long, default_value_t = 50)]
     pub eq_steps: usize,
 
-    #[clap(short, long, parse(from_str), default_value = "regular")]
-    pub network_type: NetworkType,
+    // #[clap(short, long, parse(from_str), default_value = "regular")]
+    // pub network_type: NetworkType,
 
     #[clap(short, long, default_value_t = 0.0001f64)]
     pub t_min: f64,

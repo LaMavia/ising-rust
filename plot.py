@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import re
 import sys
 
 if len(sys.argv) < 2:
@@ -10,9 +11,9 @@ if len(sys.argv) < 2:
 plot_type, *args = sys.argv[1:]
 
 if plot_type == 'hys':
-  name, plot_title = args
+  data_path, plot_title = args
 
-  f = pd.read_csv(f'{name}.csv')
+  f = pd.read_csv(data_path)
 
   f.plot("H", "M")
   plt.title(plot_title)
@@ -21,14 +22,14 @@ if plot_type == 'hys':
   plt.show()
 
 if plot_type == 'phase':
-  name, plot_title = args
+  data_path, plot_title = args
 
-  f = pd.read_csv(f'{name}.csv')
+  f = pd.read_csv(data_path)
 
   f.plot("T", "M")
   plt.title(plot_title)
 
-  plt.savefig(f'{name}.png')
+  plt.savefig(re.sub(r'.+\.csv$', 'plot.png', data_path))
   plt.show()
 
 else:
