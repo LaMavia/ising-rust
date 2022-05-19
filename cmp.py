@@ -21,8 +21,11 @@ def calc_rate_diff(xs, a, b):
 
   return calc_diff(calc_rate(xs, a), calc_rate(xs, b))
 
+def mt(t, m0, tc, b):
+  return m0 * np.power(np.max(1 - t/tc, 0), b)
+
 def mt_fit(t, m0, tc, b):
-  v = np.max(1 - t/tc, 0)
+  v = abs(1 - t/tc)
 
   return m0 * np.power(v, b)
 
@@ -34,7 +37,7 @@ def slice_data(xs, ys):
     valid.append(y)
 
   pos_len = len(valid)
-  left_lim = len([v for v in valid if v > 0.9])
+  left_lim = len([v for v in valid if v > 0.96])
   d = 1
 
   return xs[left_lim:pos_len:d], ys[left_lim:pos_len:d]
@@ -45,7 +48,19 @@ def fit_plot(xs, ys, bounds):
   popt, _ = curve_fit(mt_fit, xn, yn, bounds=bounds, maxfev=10000)  # ([1, 1, 0.1], [2, 2, 0.5])
   m0, tc, b = popt
   print(f'M_0={m0}, T_C={tc}, β={b}')
-  return xn, [mt_fit(t, *popt) for t in xn], popt
+  return xn, [mt(t, *popt) for t in xn], popt
+
+
+def plot(ax1, xs, ys, bounds, label, name, colour):
+  xaa, yaa = slice_data(xs, ys)
+  ax1.scatter(xs, ys, marker='.', color=(*colour, 0.5), label=f'[{name}] {label}')
+
+  fxa, fya, fpa = fit_plot(xaa, yaa, bounds)
+  ax1.plot(fxa, fya, linestyle='dashed', 
+    color=(*[max(c - 0.1, 0) for c in colour], 1), 
+    label=f'[{name}] fit(M_0={round(fpa[0], 4)}, T_C={round(fpa[1], 4)}, β={round(fpa[2], 4)})'
+    )
+
 
 def main(path_a: str, path_b: str):
   dfa = pd.read_csv(path_a)
@@ -66,7 +81,7 @@ def main(path_a: str, path_b: str):
   y_a = list(dfa[dfa.columns[1]])
   y_b = list(dfb[dfb.columns[1]])
 
-  fig, ax1 = plt.subplots()
+  fig, ax1 = plt.subplots(figsize=(10,7), dpi=300)
   ax1.set_xlabel(dfa.columns[0])
   ax1.set_ylabel(dfa.columns[1])
   ax1.grid(which='both')
@@ -74,35 +89,28 @@ def main(path_a: str, path_b: str):
   colours = {
     'orange': (235/255, 116/255, 52/255),
     'cyan': (52/255, 217/255, 235/255),
-    'black': (0, 0, 0)
+    'black': (0.2, 0.2, 0.2)
   }
 
-  xaa, yaa = slice_data(x_a, y_a)
-  xbb, ybb = slice_data(x_b, y_b)
+  plot(
+    ax1=ax1, xs=x_a, ys=y_a,
+    bounds=([1, 2.3, 0.1], [5, 2.6, 0.5]),
+    label=path_a, name='a',
+    colour=colours['cyan']
+  )
 
-  ax1.plot(xaa, yaa, marker='.', color=(*colours['cyan'], 0.5), label=f'[a] {path_a}')
-  ax1.plot(xbb, ybb, marker='.', color=(*colours['orange'], 0.5), label=f'[b]  {path_b}')
-  # ax1.plot(x_a, calc_diff(y_a, y_b), label="difference (b - a)", color=(0.2, 0.6, 0.6, 0.6))
-  
-  # m0, tc, β
-  fxa, fya, fpa = fit_plot(xaa, yaa, ([1, 2.3, 0.2], [5, 2.6, 0.3]))
-  ax1.plot(fxa, fya, linestyle='dashed', color=(*colours['cyan'], 1), label=f'[a] fit(M_0={fpa[0]}, T_C={fpa[1]}, β={fpa[2]})')
-
-  fxb, fyb, fpb = fit_plot(xbb, ybb, ([1, 1.85, 0.2], [1.5, 2, 0.5]))
-  ax1.plot(fxb, fyb, linestyle='dashed', color=(*colours['orange'], 1), label=f'[b] fit(M_0={fpb[0]}, T_C={fpb[1]}, β={fpb[2]})')
-
+  plot(
+    ax1=ax1, xs=x_b, ys=y_b,
+    bounds=([1, 1.85, 0.1], [5, 2, 0.5]),
+    label=path_b, name='b',
+    colour=colours['orange']
+  )
 
   ax1.legend()
+  #fig.tight_layout()
+  plt.savefig('plot.png', dpi=300)
 
-  # ax2 = ax1.twinx()
-  # ax2.set_ylabel(f'{dfa.columns[1]}·{dfa.columns[0]}^-1')
-
-  # ax2.plot(x_a[:-1], calc_rate_diff(x_a, y_a, y_b), label="rate difference (b - a)", color=(0.2, 0.6, 0.6, 0.2))
-  # ax2.legend()
-
-  fig.tight_layout()
-
-  plt.show()
+  #plt.show()
 
 def print_usage():
   print(f'usage: ./cmp.py path_a path_b')
