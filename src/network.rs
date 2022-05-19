@@ -44,6 +44,8 @@ pub struct Network {
     pub size: usize,
     pub spins: Matrix<i8>,
     pub lattice: Matrix<Vec<usize>>,
+    pub deg_mse: f64,
+    pub deg_avg: f64
 }
 
 impl Network {
@@ -127,14 +129,21 @@ impl Network {
     }
 
     pub fn new(size: usize, network_type: &NetworkType, rand: &mut ChaCha20Rng) -> Self {
-        Network {
+        let m = Network {
             size,
             spins: Network::make_spins(size, rand),
             lattice: match network_type {
                 NetworkType::Regular => Network::make_lattice_regular(size, rand),
                 NetworkType::Irregular => Network::make_lattice_irregular(size, rand),
             },
-        }
+            deg_mse:0f64,
+            deg_avg:0f64
+        };
+
+        m.deg_mse = m.get_deg_mse(4f64);
+        m.deg_avg = m.get_avg_deg();
+
+        m
     }
 
     pub fn get_neighbours(&self, (x, y): (usize, usize)) -> Vec<i8> {

@@ -5,21 +5,15 @@ mod network;
 mod simulation;
 
 use std::thread;
-use std::{
-    env,
-    error::Error,
-    fs::{self, create_dir_all},
-    io,
-    path::Path,
-};
+use std::{env, error::Error, fs, path::Path};
 
 use clap::*;
+use cli::ArgsHysteresis;
 use network::NetworkType;
 use rand::SeedableRng;
 use simulation::{Simulation, SimulationConfig};
 
 use crate::cli::{ArgError, ArgsPhase};
-use crate::network::Network;
 
 fn prepare_data_path(
     network_type: NetworkType,
@@ -83,74 +77,80 @@ fn run_phase(
         },
         &mut rand,
     ) {
-        Ok(_) => {
-            Ok(
-                data_path_str, /*format!(
-                                   "phase {data_path_str} {plot_title}",
-                                   plot_title = format!(
-                                       "size={size},eq_steps={eq_steps},network_type={network_type},T_step={t_step}",
-                                       size = args.size,
-                                       eq_steps = args.eq_steps,
-                                       network_type = network_type.to_string(),
-                                       t_step = args.t_step
-                                   )
+        Ok(_) => Ok(data_path_str),
+        Err(e) => Err(e),
+    }
+}
 
-                               )*/
-            )
-        }
+fn run_hysteresis(
+    rand_seed: u64,
+    args: &ArgsHysteresis,
+    network_type: NetworkType,
+) -> Result<String, Box<dyn Error>> {
+    let mut rand = rand_chacha::ChaCha20Rng::seed_from_u64(rand_seed);
+    let simulation_type: String = "hys".to_string();
+
+    let mut s = Simulation::new(
+        args.size,
+        SimulationConfig {
+            temp: args.temp,
+            h: 0f64,
+            j: 1f64,
+            kb: 1f64,
+            equilibrium_steps: args.eq_steps,
+            network_type: network_type,
+        },
+        &mut rand,
+    );
+
+    let data_path_str = prepare_data_path(
+        network_type,
+        &simulation_type,
+        args.size,
+        args.h_step,
+        args.h_max,
+    )?;
+    let data_path = Path::new(&data_path_str);
+
+    match s.simulate_hysteresis(
+        &data_path,
+        simulation::HysteresisConfig {
+            h_min: args.h_min,
+            h_max: args.h_max,
+            h_step: args.h_step,
+        },
+        &mut rand,
+    ) {
+        Ok(_) => Ok(data_path_str),
         Err(e) => Err(e),
     }
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
-    let mut rand = rand_chacha::ChaCha20Rng::seed_from_u64(2);
+    let rand_seed = 2;
 
     let result: Result<String, Box<dyn Error>> = match args.get(1) {
         Some(simulation_type) if simulation_type.as_str() == "hys" => {
-            let args = cli::ArgsHysteresis::parse_from(env::args().skip(1));
+            let mut children = vec![];
+            for network_type in vec![NetworkType::Regular, NetworkType::Irregular] {
+                let args = cli::ArgsHysteresis::parse_from(env::args().skip(1));
 
-            let mut s = Simulation::new(
-                args.size,
-                SimulationConfig {
-                    temp: args.temp,
-                    h: 0f64,
-                    j: 1f64,
-                    kb: 1f64,
-                    equilibrium_steps: args.eq_steps,
-                    network_type: args.network_type,
-                },
-                &mut rand,
-            );
-
-            let data_dir = format!(
-                "data/{}/{}/size={}_step={}_max={}",
-                args.network_type.to_string(),
-                simulation_type,
-                args.size,
-                args.h_step,
-                args.h_max,
-            );
-
-            fs::create_dir_all(&data_dir)?;
-            let data_path_str = format!("{}/data.csv", data_dir);
-            let data_path = Path::new(&data_path_str);
-
-            match s.simulate_hysteresis(
-                &data_path,
-                simulation::HysteresisConfig {
-                    h_min: args.h_min,
-                    h_max: args.h_max,
-                    h_step: args.h_step,
-                },
-                &mut rand,
-            ) {
-                Ok(_) => {
-                    eprintln!("simulation done!");
-                    Ok(format!("hys {data_path_str} {plot_title}", plot_title=format!("size={size},T={temp},eq_steps={eq_steps},network_type={network_type},H_step={h_step}", size=args.size, temp=args.temp, eq_steps=args.eq_steps, network_type=args.network_type.to_string(),h_step=args.h_step)))
-                }
-                Err(e) => Err(e),
+                children.push(thread::spawn(move || {
+                    match run_hysteresis(rand_seed, &args, network_type) {
+                        Err(e) => eprintln!("{}", e),
+                        Ok(p) => {
+                            print!("{} ", p)
+                        }
+                    }
+                }));
             }
+
+            for child in children {
+                child.join().unwrap();
+            }
+
+            Ok("".to_string())
         }
         Some(simulation_type) if simulation_type.as_str() == "phase" => {
             let mut children = vec![];
@@ -158,9 +158,11 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let args = cli::ArgsPhase::parse_from(env::args().skip(1));
 
                 children.push(thread::spawn(move || {
-                    match run_phase(2, &args, network_type) {
+                    match run_phase(rand_seed, &args, network_type) {
                         Err(e) => eprintln!("{}", e),
-                        Ok(p) => {print!("{} ", p)}
+                        Ok(p) => {
+                            print!("{} ", p)
+                        }
                     }
                 }));
             }

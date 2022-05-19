@@ -9,4 +9,4 @@ plot_args=$(cargo run --release -- "$@")
 printf "args: %s\n" "$plot_args"
 
 # plot
-if [[ -n "$plot_args" ]]; then ./cmp.py $plot_args; fi
+# if [[ -n "$plot_args" ]]; then ./cmp.py $plot_args; fi

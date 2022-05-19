@@ -18,9 +18,6 @@ pub struct ArgsHysteresis {
     #[clap(short, long, default_value_t = 50)]
     pub eq_steps: usize,
 
-    #[clap(short, long, parse(from_str), default_value = "regular")]
-    pub network_type: NetworkType,
-
     #[clap(short, long, default_value_t=-2.5f64)]
     pub h_min: f64,
 
@@ -38,9 +35,6 @@ pub struct ArgsPhase {
 
     #[clap(short, long, default_value_t = 50)]
     pub eq_steps: usize,
-
-    // #[clap(short, long, parse(from_str), default_value = "regular")]
-    // pub network_type: NetworkType,
 
     #[clap(short, long, default_value_t = 0.0001f64)]
     pub t_min: f64,

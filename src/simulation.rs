@@ -90,8 +90,8 @@ impl Simulation {
             "H: {}, M: {}, deg_MSE: {}, deg_avg: {}",
             h,
             m,
-            self.network.get_deg_mse(4f64),
-            self.network.get_avg_deg()
+            self.network.deg_mse,
+            self.network.deg_avg
         );
 
         vec![h, m]

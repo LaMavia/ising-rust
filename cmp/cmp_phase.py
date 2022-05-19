@@ -113,7 +113,7 @@ def main(path_a: str, path_b: str):
   #plt.show()
 
 def print_usage():
-  print(f'usage: ./cmp.py path_a path_b')
+  print(f'usage: ./cmp_phase.py path_a path_b')
 
 def are_arguments_valid() -> [bool, str]:
   if len(sys.argv) <= 2: 
