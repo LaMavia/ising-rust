@@ -3,7 +3,6 @@ use std::{
     fmt::{Display, Formatter, Result},
 };
 
-use crate::network::NetworkType;
 use clap::Parser;
 use serde::Serialize;
 
@@ -12,14 +11,11 @@ pub struct ArgsHysteresis {
     #[clap(short, long, default_value_t = 100)]
     pub size: usize,
 
-    #[clap(short, long)]
-    pub temp: f64,
+    #[clap(short, long, multiple_values=true)]
+    pub temps: Vec<f64>,
 
     #[clap(short, long, default_value_t = 50)]
     pub eq_steps: usize,
-
-    #[clap(short, long, default_value_t=-2.5f64)]
-    pub h_min: f64,
 
     #[clap(short, long, default_value_t = 2.5f64)]
     pub h_max: f64,

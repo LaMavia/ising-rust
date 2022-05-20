@@ -15,26 +15,38 @@ use simulation::{Simulation, SimulationConfig};
 
 use crate::cli::{ArgError, ArgsPhase};
 
-fn prepare_data_path(
+// add extra params, split into two
+
+fn make_data_path_phase(network_type: NetworkType, size: usize, step: f64, max: f64) -> String {
+    format!(
+        "data/{}/phase/size={}_step={}_max={}",
+        network_type.to_string(),
+        size,
+        step,
+        max
+    )
+}
+
+fn make_data_path_hys(
     network_type: NetworkType,
-    simulation_type: &String,
     size: usize,
     step: f64,
     max: f64,
-) -> Result<String, Box<dyn Error>> {
-    let data_dir = format!(
-        "data/{}/{}/size={}_step={}_max={}",
+    temp: f64,
+) -> String {
+    format!(
+        "data/{}/hys/size={}_step={}_max={}_temp={}",
         network_type.to_string(),
-        simulation_type,
         size,
         step,
         max,
-    );
+        temp
+    )
+}
 
+fn prepare_data_path(data_dir: &String) -> Result<String, Box<dyn Error>> {
     let data_path_str = format!("{}/data.csv", data_dir);
-
     fs::create_dir_all(&data_dir)?;
-
     Ok(data_path_str)
 }
 
@@ -44,7 +56,6 @@ fn run_phase(
     network_type: NetworkType,
 ) -> Result<String, Box<dyn Error>> {
     let mut rand = rand_chacha::ChaCha20Rng::seed_from_u64(rand_seed);
-    let simulation_type: String = "phase".to_string();
 
     let mut s = Simulation::new(
         args.size,
@@ -60,11 +71,12 @@ fn run_phase(
     );
 
     let data_path_str = prepare_data_path(
-        network_type,
-        &simulation_type,
-        args.size,
-        args.t_step,
-        args.t_max,
+        &make_data_path_phase(
+            network_type,
+            args.size,
+            args.t_step,
+            args.t_max
+        )
     )?;
     let data_path = Path::new(&data_path_str);
 
@@ -86,14 +98,14 @@ fn run_hysteresis(
     rand_seed: u64,
     args: &ArgsHysteresis,
     network_type: NetworkType,
+    temp: f64
 ) -> Result<String, Box<dyn Error>> {
     let mut rand = rand_chacha::ChaCha20Rng::seed_from_u64(rand_seed);
-    let simulation_type: String = "hys".to_string();
 
     let mut s = Simulation::new(
         args.size,
         SimulationConfig {
-            temp: args.temp,
+            temp,
             h: 0f64,
             j: 1f64,
             kb: 1f64,
@@ -104,18 +116,20 @@ fn run_hysteresis(
     );
 
     let data_path_str = prepare_data_path(
-        network_type,
-        &simulation_type,
-        args.size,
-        args.h_step,
-        args.h_max,
+        &make_data_path_hys(
+            network_type,
+            args.size,
+            args.h_step,
+            args.h_max,
+            temp
+        )
     )?;
     let data_path = Path::new(&data_path_str);
 
     match s.simulate_hysteresis(
         &data_path,
         simulation::HysteresisConfig {
-            h_min: args.h_min,
+            h_min: -args.h_max,
             h_max: args.h_max,
             h_step: args.h_step,
         },
@@ -135,15 +149,20 @@ fn main() -> Result<(), Box<dyn Error>> {
             let mut children = vec![];
             for network_type in vec![NetworkType::Regular, NetworkType::Irregular] {
                 let args = cli::ArgsHysteresis::parse_from(env::args().skip(1));
+                let temps = args.temps;
+                
+                for temp in temps {
+                    let args = cli::ArgsHysteresis::parse_from(env::args().skip(1));
 
-                children.push(thread::spawn(move || {
-                    match run_hysteresis(rand_seed, &args, network_type) {
-                        Err(e) => eprintln!("{}", e),
-                        Ok(p) => {
-                            print!("{} ", p)
+                    children.push(thread::spawn(move || {
+                        match run_hysteresis(rand_seed, &args, network_type, temp) {
+                            Err(e) => eprintln!("{}", e),
+                            Ok(p) => {
+                                print!("{} ", p)
+                            }
                         }
-                    }
-                }));
+                    }));
+                }
             }
 
             for child in children {

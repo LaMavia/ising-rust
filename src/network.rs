@@ -129,7 +129,7 @@ impl Network {
     }
 
     pub fn new(size: usize, network_type: &NetworkType, rand: &mut ChaCha20Rng) -> Self {
-        let m = Network {
+        let mut m = Network {
             size,
             spins: Network::make_spins(size, rand),
             lattice: match network_type {

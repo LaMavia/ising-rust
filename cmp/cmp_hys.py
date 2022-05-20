@@ -16,10 +16,15 @@ def plot(path, ax, colour, name, label):
   ax.set_ylabel(df.columns[1])
   ax.plot(hs, ms, color=colour, marker='.', label=f'''[{name}] {label}''')
 
-def main(path_a, path_b):
+def main(paths):
   colours = {
     'orange': (235/255, 116/255, 52/255),
     'cyan': (52/255, 217/255, 235/255),
+    'red': (196/255, 55/255, 53/255),
+    'blue': (49/255, 145/255, 204/255),
+    'yellow': (230/255, 182/255, 53/255),
+    'tl': (53/255, 230/255, 109/255),
+    'purple': (191/255, 53/255, 230/255),
     'black': (0.2, 0.2, 0.2)
   }
 
@@ -27,10 +32,12 @@ def main(path_a, path_b):
 
   ax.grid(which='both')
 
-  plot(path=path_a, ax=ax, colour=colours['cyan'], name='a', label=path_a)
-  plot(path=path_b, ax=ax, colour=colours['orange'], name='b', label=path_b)
+  colour_keys = list(colours.keys())
 
-  ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.2))
+  for path, i in zip(paths, range(1, len(paths) + 1)):
+    plot(path=path, ax=ax, colour=colours[colour_keys[(i - 1) % len(colour_keys)]], name=i, label=path)
+
+  ax.legend(loc='lower center', bbox_to_anchor=(0.5, -len(paths)/15))
   fig.tight_layout()
 
   plt.savefig('plot_hys.png', dpi=300)
@@ -40,12 +47,12 @@ def print_usage():
   print(f'usage: ./cmp_hys.py path_a path_b')
 
 def are_arguments_valid() -> [bool, str]:
-  if len(sys.argv) <= 2: 
-    return [False, 'Too few arguments; expected 2']
+  if len(sys.argv) <= 1: 
+    return [False, 'Too few arguments; expected at least 1']
   
-  path_a, path_b = sys.argv[1:]
+  paths = sys.argv[1:]
 
-  for path_str in [path_a, path_b]:
+  for path_str in paths:
     path = pathlib.Path(path_str)
 
     if not path.exists():
@@ -59,5 +66,5 @@ if __name__ == '__main__':
     print_usage()
     exit(1)
 
-  path_a, path_b = sys.argv[1:]
-  main(path_a=path_a, path_b=path_b)
+  paths = sys.argv[1:]
+  main(paths)
