@@ -2,3 +2,4 @@
 *.csv
 *.png
 !plot*
+__pycache__

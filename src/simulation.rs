@@ -47,25 +47,25 @@ impl Simulation {
         }
     }
 
-    pub fn calc_delta_h(&self, (x, y): (usize, usize)) -> f64 {
-        let neighbour_spin_sum = self.network.get_neighbours((x, y)).iter().sum::<i8>() as f64;
-        let sk = self.network.get_spin((x, y)) as f64;
+    pub fn calc_delta_h(&self, p: (usize, usize)) -> f64 {
+        let neighbour_spin_sum = self.network.get_neighbours(p).iter().sum::<i8>() as f64;
+        let sk = self.network.get_spin(p) as f64;
 
         sk * 2f64 * (self.config.j * neighbour_spin_sum + self.config.h)
     }
 
     pub fn calc_magnetisation(&self) -> f64 {
         self.network.spins.iter().fold(0f64, |u, s| u + (*s as f64))
-            / (self.network.size.pow(2) as f64)
+            / ((self.network.size * self.network.size) as f64)
     }
 
-    fn evolve_spin(&mut self, (x, y): (usize, usize), rng: &mut ChaCha20Rng) {
-        let delta_h = self.calc_delta_h((x, y));
+    fn evolve_spin(&mut self, p: (usize, usize), rng: &mut ChaCha20Rng) {
+        let delta_h = self.calc_delta_h(p);
         let distortion = rng.gen::<f64>();
 
         if delta_h <= 0f64 || distortion < (-delta_h / (self.config.kb * self.config.temp)).exp() {
             // println!("flipping ({x}, {y})!");
-            self.network.flip_spin((x, y))
+            self.network.flip_spin(p)
         }
     }
 
@@ -77,7 +77,7 @@ impl Simulation {
     }
 
     pub fn mc_iter(&mut self, rng: &mut ChaCha20Rng) {
-        for _ in 0..(self.network.size.pow(2)) {
+        for _ in 0..(self.network.size * self.network.size) {
             self.mc_step(rng)
         }
     }
@@ -88,10 +88,7 @@ impl Simulation {
 
         eprintln!(
             "H: {}, M: {}, deg_MSE: {}, deg_avg: {}",
-            h,
-            m,
-            self.network.deg_mse,
-            self.network.deg_avg
+            h, m, self.network.deg_mse, self.network.deg_avg
         );
 
         vec![h, m]
@@ -105,8 +102,8 @@ impl Simulation {
             "T: {}, M: {}, deg_MSE: {}, deg_avg: {}",
             temp,
             m,
-            self.network.get_deg_mse(4f64),
-            self.network.get_avg_deg()
+            self.network.deg_mse,
+            self.network.deg_avg
         );
 
         vec![temp, m]
@@ -146,13 +143,14 @@ impl Simulation {
 
             // save
             data_writer.serialize(self.snapshot_hysteresis())?;
-            data_writer.flush()?;
-
+            
             // step
             self.config.h =
                 ((self.config.h + step_direction * config.h_step) * precision).floor() / precision;
         }
 
+        data_writer.flush()?;
+        
         Ok(())
     }
 
@@ -167,7 +165,11 @@ impl Simulation {
         data_writer.write_record(&["T", "M"])?;
         data_writer.flush()?;
 
-        let precision = 1e4f64;
+        let e_initial = -config.t_min.log10().ceil() as i32;
+        let e_step = -config.t_step.log10().ceil() as i32;
+        let precision = 10f64.powi(e_initial.max(e_step));
+
+        eprintln!("in: {e_initial}, step: {e_step}, precision: {precision}");
 
         for x in 0..self.network.size {
             for y in 0..self.network.size {
@@ -185,12 +187,13 @@ impl Simulation {
 
             // save
             data_writer.serialize(self.snapshot_phase())?;
-            data_writer.flush()?;
-
+            
             // step
             self.config.temp = ((self.config.temp + config.t_step) * precision).floor() / precision;
         }
 
+        data_writer.flush()?;
+        
         Ok(())
     }
 }

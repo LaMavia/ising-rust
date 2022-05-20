@@ -6,6 +6,7 @@ import pandas as pd
 import sys
 import pathlib
 from scipy.optimize import curve_fit
+import plot_constants
 
 # calcs b - a
 def calc_diff(a, b):
@@ -21,20 +22,18 @@ def calc_rate_diff(xs, a, b):
 
   return calc_diff(calc_rate(xs, a), calc_rate(xs, b))
 
-def mt(t, m0, tc, b):
-  return m0 * np.power(np.max(1 - t/tc, 0), b)
-
 def mt_fit(t, m0, tc, b):
-  v = abs(1 - t/tc)
+  v = (1 - t/tc)
 
-  return m0 * np.power(v, b)
+  return m0 * np.sign(v) * np.abs(v) ** b
 
 def slice_data(xs, ys):
   valid = []
   for y in ys:
-    if y < 0:
+    if y >= 0:
+      valid.append(y)
+    if y <= 0:
       break
-    valid.append(y)
 
   pos_len = len(valid)
   left_lim = len([v for v in valid if v > 0.96])
@@ -48,7 +47,7 @@ def fit_plot(xs, ys, bounds):
   popt, _ = curve_fit(mt_fit, xn, yn, bounds=bounds, maxfev=10000)  # ([1, 1, 0.1], [2, 2, 0.5])
   m0, tc, b = popt
   print(f'M_0={m0}, T_C={tc}, β={b}')
-  return xn, [mt(t, *popt) for t in xn], popt
+  return xn, [mt_fit(t, *popt) for t in xn], popt
 
 
 def plot(ax1, xs, ys, bounds, label, name, colour):
@@ -61,53 +60,53 @@ def plot(ax1, xs, ys, bounds, label, name, colour):
     label=f'[{name}] fit(M_0={round(fpa[0], 4)}, T_C={round(fpa[1], 4)}, β={round(fpa[2], 4)})'
     )
 
+def plot(path, ax, colour, name, label, bounds):
+  df = pd.read_csv(path)
+  t_label, m_label, *_ = df.columns
 
-def main(path_a: str, path_b: str):
-  dfa = pd.read_csv(path_a)
-  dfb = pd.read_csv(path_b)
+  ts = list(df[t_label])
+  ms = list(df[m_label])
 
-  x_a = list(dfa[dfa.columns[0]])
-  x_b = list(dfb[dfb.columns[0]])
+  ax.set_xlabel(t_label)
+  ax.set_ylabel(m_label)
 
-  if x_a != x_b:
-    print(f'''unmatching data arguments: (i, xa, xb) \n{
-      [(i, xa, xb) for (i, (xa, xb)) 
-        in enumerate(zip(x_a, x_b)) 
-        if x_a != x_b
-      ]
-      }''')
-    exit(1)
+  ts_reduced, ms_reduced = slice_data(ts, ms)
 
-  y_a = list(dfa[dfa.columns[1]])
-  y_b = list(dfb[dfb.columns[1]])
+  # plot the data
+  ax.scatter(ts, ms, marker='.', color=(*colour, 0.5), label=f'[{name}] {label}')
 
-  fig, ax1 = plt.subplots(figsize=(10,7), dpi=300)
-  ax1.set_xlabel(dfa.columns[0])
-  ax1.set_ylabel(dfa.columns[1])
-  ax1.grid(which='both')
+  # plot a fitted line
+  ts_fit, ms_fit, fit_params = fit_plot(ts, ms, bounds)
+  m0, tc, beta = fit_params
 
-  colours = {
-    'orange': (235/255, 116/255, 52/255),
-    'cyan': (52/255, 217/255, 235/255),
-    'black': (0.2, 0.2, 0.2)
-  }
-
-  plot(
-    ax1=ax1, xs=x_a, ys=y_a,
-    bounds=([1, 2.3, 0.1], [5, 2.6, 0.5]),
-    label=path_a, name='a',
-    colour=colours['cyan']
+  ax.plot(ts_fit, ms_fit, linestyle='dashed',
+    color=(*[max(c - 0.2, 0) for c in colour], 1),
+    label=f'[{name}] fit(M_0={round(m0, 4)}, T_C={round(tc, 4)}, β={round(beta, 4)})'
   )
 
-  plot(
-    ax1=ax1, xs=x_b, ys=y_b,
-    bounds=([1, 1.85, 0.1], [5, 2, 0.5]),
-    label=path_b, name='b',
-    colour=colours['orange']
-  )
 
-  ax1.legend()
-  #fig.tight_layout()
+
+
+
+def main(paths: list[str]):
+  colours = plot_constants.plot_colours
+  colour_keys = list(colours.keys())
+
+  fig, ax = plt.subplots(figsize=(10,7), dpi=300)
+  ax.grid(which='both')
+
+  for path, i in zip(paths, range(1, len(paths) + 1)):
+    plot(
+      path=path,
+      ax=ax,
+      colour=colours[colour_keys[(i - 1) % len(colour_keys)]],
+      name=i,
+      label=path,
+      bounds=(0.1, 5)
+    )
+
+  ax.legend()
+  fig.tight_layout()
   plt.savefig('plot.png', dpi=300)
 
   #plt.show()
@@ -117,11 +116,11 @@ def print_usage():
 
 def are_arguments_valid() -> [bool, str]:
   if len(sys.argv) <= 2: 
-    return [False, 'Too few arguments; expected 2']
+    return [False, 'Too few arguments; expected at least 1']
   
-  path_a, path_b = sys.argv[1:]
+  paths = sys.argv[1:]
 
-  for path_str in [path_a, path_b]:
+  for path_str in paths:
     path = pathlib.Path(path_str)
 
     if not path.exists():
@@ -135,5 +134,4 @@ if __name__ == '__main__':
     print_usage()
     exit(1)
 
-  path_a, path_b = sys.argv[1:]
-  main(path_a=path_a, path_b=path_b)
+  main(paths=sys.argv[1:])

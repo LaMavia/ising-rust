@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import sys
 import pathlib
+import plot_constants
 
 
 def plot(path, ax, colour, name, label):
@@ -17,16 +18,7 @@ def plot(path, ax, colour, name, label):
   ax.plot(hs, ms, color=colour, marker='.', label=f'''[{name}] {label}''')
 
 def main(paths):
-  colours = {
-    'orange': (235/255, 116/255, 52/255),
-    'cyan': (52/255, 217/255, 235/255),
-    'red': (196/255, 55/255, 53/255),
-    'blue': (49/255, 145/255, 204/255),
-    'yellow': (230/255, 182/255, 53/255),
-    'tl': (53/255, 230/255, 109/255),
-    'purple': (191/255, 53/255, 230/255),
-    'black': (0.2, 0.2, 0.2)
-  }
+  colours = plot_constants.plot_colours
 
   fig, ax = plt.subplots(figsize=(10,7), dpi=300)
 

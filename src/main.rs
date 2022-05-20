@@ -17,13 +17,14 @@ use crate::cli::{ArgError, ArgsPhase};
 
 // add extra params, split into two
 
-fn make_data_path_phase(network_type: NetworkType, size: usize, step: f64, max: f64) -> String {
+fn make_data_path_phase(network_type: NetworkType, size: usize, step: f64, max: f64, eq_steps: usize) -> String {
     format!(
-        "data/{}/phase/size={}_step={}_max={}",
+        "data/{}/phase/size={}_step={}_max={}_eq={}",
         network_type.to_string(),
         size,
         step,
-        max
+        max,
+        eq_steps
     )
 }
 
@@ -75,7 +76,8 @@ fn run_phase(
             network_type,
             args.size,
             args.t_step,
-            args.t_max
+            args.t_max,
+            args.eq_steps
         )
     )?;
     let data_path = Path::new(&data_path_str);
@@ -165,6 +167,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
 
+            print!("{} ", simulation_type);
+
             for child in children {
                 child.join().unwrap();
             }
@@ -174,17 +178,22 @@ fn main() -> Result<(), Box<dyn Error>> {
         Some(simulation_type) if simulation_type.as_str() == "phase" => {
             let mut children = vec![];
             for network_type in vec![NetworkType::Regular, NetworkType::Irregular] {
-                let args = cli::ArgsPhase::parse_from(env::args().skip(1));
+                for eq_steps in vec![50] {
+                    let mut args = cli::ArgsPhase::parse_from(env::args().skip(1));
+                    args.eq_steps = eq_steps;
 
-                children.push(thread::spawn(move || {
-                    match run_phase(rand_seed, &args, network_type) {
-                        Err(e) => eprintln!("{}", e),
-                        Ok(p) => {
-                            print!("{} ", p)
+                    children.push(thread::spawn(move || {
+                        match run_phase(rand_seed, &args, network_type) {
+                            Err(e) => eprintln!("{}", e),
+                            Ok(p) => {
+                                print!("{} ", p)
+                            }
                         }
-                    }
-                }));
+                    }));
+                }
             }
+
+            print!("{} ", simulation_type);
 
             for child in children {
                 child.join().unwrap();
