@@ -33,16 +33,14 @@ pub struct PhaseConfig {
 
 #[derive(Debug)]
 pub struct Simulation {
-    network: Network,
-    size: usize,
-    config: SimulationConfig,
+    pub network: Network,
+    pub config: SimulationConfig,
 }
 
 impl Simulation {
     pub fn new(size: usize, config: SimulationConfig, rand: &mut ChaCha20Rng) -> Self {
         Simulation {
             network: Network::new(size, &config.network_type, rand),
-            size,
             config,
         }
     }
@@ -76,10 +74,28 @@ impl Simulation {
         self.evolve_spin((x, y), rng);
     }
 
-    pub fn mc_iter(&mut self, rng: &mut ChaCha20Rng) {
-        for _ in 0..(self.network.size * self.network.size) {
-            self.mc_step(rng)
+    pub fn mc_step_chb(&mut self, rng: &mut ChaCha20Rng) {
+        for x in 0..self.network.size {
+            for y in 0..self.network.size {
+                if x.rem_euclid(2) == y.rem_euclid(2) {
+                    self.evolve_spin((x, y), rng);
+                }
+            }
         }
+
+        for x in 0..self.network.size {
+            for y in 0..self.network.size {
+                if x.rem_euclid(2) != y.rem_euclid(2) {
+                    self.evolve_spin((x, y), rng);
+                }
+            }
+        }
+    }
+
+    pub fn mc_iter(&mut self, rng: &mut ChaCha20Rng) {
+        for _ in 0..self.network.size.pow(2) {
+            self.mc_step(rng)
+        } 
     }
 
     pub fn snapshot_hysteresis(&self) -> Vec<f64> {
@@ -100,10 +116,7 @@ impl Simulation {
 
         eprintln!(
             "T: {}, M: {}, deg_MSE: {}, deg_avg: {}",
-            temp,
-            m,
-            self.network.deg_mse,
-            self.network.deg_avg
+            temp, m, self.network.deg_mse, self.network.deg_avg
         );
 
         vec![temp, m]
@@ -143,14 +156,14 @@ impl Simulation {
 
             // save
             data_writer.serialize(self.snapshot_hysteresis())?;
-            
+
             // step
             self.config.h =
                 ((self.config.h + step_direction * config.h_step) * precision).floor() / precision;
         }
 
         data_writer.flush()?;
-        
+
         Ok(())
     }
 
@@ -187,13 +200,13 @@ impl Simulation {
 
             // save
             data_writer.serialize(self.snapshot_phase())?;
-            
+
             // step
             self.config.temp = ((self.config.temp + config.t_step) * precision).floor() / precision;
         }
 
         data_writer.flush()?;
-        
+
         Ok(())
     }
 }

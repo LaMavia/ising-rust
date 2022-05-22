@@ -1,12 +1,12 @@
 #!/bin/python3
 import cmp_hys
-import cmp_phase
+import cmp_phase as phase
 import sys
 import pathlib
 
 modes = {
   'hys': cmp_hys.main,
-  'phase': cmp_phase.main
+  'phase': phase.main
 }
 
 def main(mode: str, *paths: list[str]):

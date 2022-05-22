@@ -3,3 +3,4 @@
 *.png
 !plot*
 __pycache__
+data/*

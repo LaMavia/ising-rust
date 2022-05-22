@@ -5,17 +5,19 @@ use crate::{cli::ArgsPhase, matrix::Matrix};
 use serde::Serialize;
 
 #[derive(Serialize)]
-pub struct PhaseDescriptor {
-    config: ArgsPhase,
-    lattice: Matrix<Vec<usize>>,
-    seed: usize,
-    data_path: Box<Path>,
-    path: Box<Path>,
+pub struct PhaseDescriptor<'a> {
+    pub config: &'a ArgsPhase,
+    pub lattice: Matrix<Vec<usize>>,
+    pub deg_mse: f64,
+    pub deg_avg: f64,
+    pub seed: u64,
+    pub data_path: &'a Path,
+    pub path: &'a Path,
 }
 
-impl PhaseDescriptor {
-    pub fn save(&self, path: &Path) -> Result<(), Box<dyn Error>> {
-        let mut f = File::create(path)?;
+impl<'a> PhaseDescriptor<'a> {
+    pub fn save(&self) -> Result<(), Box<dyn Error>> {
+        let mut f = File::create(self.path)?;
 
         f.write_all(serde_json::to_string(&self)?.as_bytes())?;
         f.flush()?;

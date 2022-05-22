@@ -5,8 +5,10 @@ import numpy as np
 import pandas as pd
 import sys
 import pathlib
+import json
 from scipy.optimize import curve_fit
 import plot_constants
+from fit_phase import curve_fit, fit_plot, mt_fit, slice_data
 
 # calcs b - a
 def calc_diff(a, b):
@@ -26,39 +28,6 @@ def mt_fit(t, m0, tc, b):
   v = (1 - t/tc)
 
   return m0 * np.sign(v) * np.abs(v) ** b
-
-def slice_data(xs, ys):
-  valid = []
-  for y in ys:
-    if y >= 0:
-      valid.append(y)
-    if y <= 0:
-      break
-
-  pos_len = len(valid)
-  left_lim = len([v for v in valid if v > 0.96])
-  d = 1
-
-  return xs[left_lim:pos_len:d], ys[left_lim:pos_len:d]
-
-def fit_plot(xs, ys, bounds):
-  xn, yn = slice_data(xs, ys)
-  
-  popt, _ = curve_fit(mt_fit, xn, yn, bounds=bounds, maxfev=10000)  # ([1, 1, 0.1], [2, 2, 0.5])
-  m0, tc, b = popt
-  print(f'M_0={m0}, T_C={tc}, β={b}')
-  return xn, [mt_fit(t, *popt) for t in xn], popt
-
-
-def plot(ax1, xs, ys, bounds, label, name, colour):
-  xaa, yaa = slice_data(xs, ys)
-  ax1.scatter(xs, ys, marker='.', color=(*colour, 0.5), label=f'[{name}] {label}')
-
-  fxa, fya, fpa = fit_plot(xaa, yaa, bounds)
-  ax1.plot(fxa, fya, linestyle='dashed', 
-    color=(*[max(c - 0.1, 0) for c in colour], 1), 
-    label=f'[{name}] fit(M_0={round(fpa[0], 4)}, T_C={round(fpa[1], 4)}, β={round(fpa[2], 4)})'
-    )
 
 def plot(path, ax, colour, name, label, bounds):
   df = pd.read_csv(path)
@@ -96,12 +65,16 @@ def main(paths: list[str]):
   ax.grid(which='both')
 
   for path, i in zip(paths, range(1, len(paths) + 1)):
+    f = open(path, 'r')
+    desc = json.loads(f.read())
+    f.close()
+
     plot(
-      path=path,
+      path=desc['data_path'],
       ax=ax,
       colour=colours[colour_keys[(i - 1) % len(colour_keys)]],
       name=i,
-      label=path,
+      label=desc['data_path'],
       bounds=(0.1, 5)
     )
 

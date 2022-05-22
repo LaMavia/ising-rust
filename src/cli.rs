@@ -26,20 +26,23 @@ pub struct ArgsHysteresis {
 
 #[derive(Parser, Debug, Serialize)]
 pub struct ArgsPhase {
-    #[clap(short, long, default_value_t = 100)]
+    #[clap(long, default_value_t = 100)]
     pub size: usize,
 
-    #[clap(short, long, default_value_t = 50)]
-    pub eq_steps: usize,
+    #[clap(long, multiple_values=true)]
+    pub eq_steps: Vec<usize>,
 
-    #[clap(short, long, default_value_t = 0.0001f64)]
+    #[clap(long, default_value_t = 0.0001f64)]
     pub t_min: f64,
 
-    #[clap(short, long, default_value_t = 2f64)]
+    #[clap(long, default_value_t = 2f64)]
     pub t_max: f64,
 
-    #[clap(short, long, default_value_t = 0.01f64)]
+    #[clap(long, default_value_t = 0.01f64)]
     pub t_step: f64,
+
+    #[clap(long, multiple_values=true)]
+    pub seeds: Vec<u64>
 }
 
 #[derive(Debug)]
