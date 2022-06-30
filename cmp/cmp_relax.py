@@ -31,27 +31,26 @@ def mt_fit(t, m0, tc, b):
 
 def plot(path, ax, colour, name, label, bounds):
   df = pd.read_csv(path)
-  t_label, m_label, *_ = df.columns
 
-  ts = list(df[t_label])
-  ms = list(df[m_label])
+  temps = list(df["T"])
+  ts = list(df["t"])
+  hs = list(df["E"])
 
-  ax.set_xlabel(t_label)
-  ax.set_ylabel(m_label)
-
-  ts_reduced, ms_reduced = slice_data(ts, ms)
+  ax.set_xlabel("t")
+  ax.set_ylabel("T")
+  ax.set_zlabel("E")
 
   # plot the data
-  ax.scatter(ts, ms, marker='.', color=(*colour, 0.3), label=f'[{name}] {label}')
+  ax.scatter(ts, temps, hs, marker='.', color=(*colour, 0.3), label=f'[{name}] {label}')
 
   # plot a fitted line
-  ts_fit, ms_fit, fit_params = fit_plot(ts, ms, bounds)
-  m0, tc, beta = fit_params
+  # ts_fit, ms_fit, fit_params = fit_plot(ts, ms, bounds)
+  # m0, tc, beta = fit_params
 
-  ax.plot(ts_fit, ms_fit, linestyle='dashed',
-    color=(*[max(c - 0.2, 0) for c in colour], 1),
-    label=f'[{name}] fit(M_0={round(m0, 4)}, T_C={round(tc, 4)}, β={round(beta, 4)})'
-  )
+  # ax.plot(ts_fit, ms_fit, linestyle='dashed',
+  #   color=(*[max(c - 0.2, 0) for c in colour], 1),
+  #   label=f'[{name}] fit(M_0={round(m0, 4)}, T_C={round(tc, 4)}, β={round(beta, 4)})'
+  # )
 
 
 
@@ -61,7 +60,9 @@ def main(paths: list[str]):
   colours = plot_constants.plot_colours
   colour_keys = list(colours.keys())
 
-  fig, ax = plt.subplots(figsize=(10,7), dpi=300)
+  fig = plt.figure(figsize=(10,7), dpi=300)
+  ax = fig.add_subplot(projection='3d')
+  
   ax.grid(which='both')
 
   for path, i in zip(paths, range(1, len(paths) + 1)):
@@ -78,14 +79,21 @@ def main(paths: list[str]):
       bounds=(0.001, 5)
     )
 
-  ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+  ax.legend()
   fig.tight_layout()
-  plt.savefig('plot.png', dpi=300)
+
+  for ii in range(0,360,1):
+    ax.view_init(elev=10., azim=ii)
+    plt.savefig(f'movie{ii}.png')
+
+  # plt.savefig('plot.png', dpi=300)
+
+  #plt.show()
 
   #plt.show()
 
 def print_usage():
-  print(f'usage: ./cmp_phase.py path_a path_b')
+  print('usage: ./cmp_relax.py {paths}')
 
 def are_arguments_valid() -> [bool, str]:
   if len(sys.argv) <= 2: 

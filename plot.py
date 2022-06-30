@@ -3,36 +3,28 @@ import numpy as np
 import pandas as pd
 import re
 import sys
+from functools import reduce
 
-if len(sys.argv) < 2:
-  raise 'no plotting arguments provided'
-  exit(1)
+def plot(xi: int, yi: int, path: str):
+  df = pd.read_csv(path, sep=' ')
 
-plot_type, *args = sys.argv[1:]
+  labels = list(df.columns)
+  xs = df[labels[xi]]
+  ys = df[labels[yi]]
 
-if plot_type == 'hys':
-  data_path, plot_title = args
+  _, _, avgs = reduce(
+    lambda u, y: (n_:= u[0] + 1, s_ := u[1] + y, [*u[2], s_ / n_]), 
+    ys, 
+    (0, 0, []))
 
-  f = pd.read_csv(data_path)
+  plt.scatter(xs, ys, label=path)
+  plt.plot(xs, avgs, label=f'[rolling avg]{path}', color=(0, 0, 0, 0.7))
 
-  f.plot("H", "M")
-  plt.title(plot_title)
+for path in sys.argv[3:]:
+  plot(xi=int(sys.argv[1]), yi=int(sys.argv[2]), path=path)
 
-  plt.savefig(f'{name}.png')
-  plt.show()
+plt.tight_layout()
+plt.legend()
 
-if plot_type == 'phase':
-  data_path, plot_title = args
-
-  f = pd.read_csv(data_path)
-
-  f.plot("T", "M")
-  plt.title(plot_title)
-
-  plt.savefig(re.sub(r'.+\.csv$', 'plot.png', data_path))
-  plt.show()
-
-else:
-  print(f'unknown plot type {plot_type}')
-  exit(1)
-
+plt.savefig('nsq.png')
+plt.show()

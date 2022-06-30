@@ -60,7 +60,14 @@ fn prepare_data_path(data_dir: &String) -> Result<String, Box<dyn Error>> {
     Ok(data_path_str)
 }
 
-fn run_phase(
+fn eq_threshold_of_type(network_type: NetworkType) -> f64 {
+    match network_type {
+        NetworkType::Regular => 0.0001,
+        NetworkType::Irregular => 0.007,
+    }
+}
+
+fn run_relax(
     rand_seed: u64,
     args: &ArgsPhase,
     network_type: NetworkType,
@@ -77,6 +84,72 @@ fn run_phase(
             kb: 1f64,
             equilibrium_steps: eq_steps,
             network_type: network_type,
+            eq_threshold: eq_threshold_of_type(network_type),
+        },
+        &mut rand,
+    );
+
+    let data_dir_str = make_data_path_phase(
+        network_type,
+        args.size,
+        args.t_step,
+        args.t_max,
+        rand_seed,
+        eq_steps,
+    );
+    let data_path_str = prepare_data_path(&data_dir_str)?;
+    let data_path = Path::new(&data_path_str);
+
+    match s.simulate_relaxation(
+        data_path,
+        simulation::PhaseConfig {
+            t_min: args.t_min,
+            t_max: args.t_max,
+            t_step: args.t_step,
+            s0: 1.,
+        },
+        &mut rand,
+    ) {
+        Ok(_) => {
+            let desc_path_str = format!("{data_dir_str}/desc.json");
+
+            let desc = PhaseDescriptor {
+                config: args,
+                lattice: s.network.lattice,
+                seed: rand_seed,
+                deg_avg: s.network.deg_avg,
+                deg_mse: s.network.deg_mse,
+                data_path: data_path,
+                path: Path::new(&desc_path_str),
+            };
+
+            desc.save()?;
+
+            Ok(desc_path_str)
+        }
+        Err(e) => Err(e),
+    }
+}
+
+fn run_phase(
+    rand_seed: u64,
+    args: &ArgsPhase,
+    network_type: NetworkType,
+    eq_steps: usize,
+    s0: f64,
+) -> Result<String, Box<dyn Error>> {
+    let mut rand = rand_chacha::ChaCha20Rng::seed_from_u64(rand_seed);
+
+    let mut s = Simulation::new(
+        args.size,
+        SimulationConfig {
+            temp: args.t_min,
+            h: 0f64,
+            j: 1f64,
+            kb: 1f64,
+            equilibrium_steps: eq_steps,
+            network_type: network_type,
+            eq_threshold: eq_threshold_of_type(network_type),
         },
         &mut rand,
     );
@@ -98,6 +171,7 @@ fn run_phase(
             t_min: args.t_min,
             t_max: args.t_max,
             t_step: args.t_step,
+            s0,
         },
         &mut rand,
     ) {
@@ -139,6 +213,7 @@ fn run_hysteresis(
             kb: 1f64,
             equilibrium_steps: args.eq_steps,
             network_type: network_type,
+            eq_threshold: eq_threshold_of_type(network_type),
         },
         &mut rand,
     );
@@ -206,12 +281,43 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                 for rand_seed in args.seeds {
                     let args = cli::ArgsPhase::parse_from(env::args().skip(1));
-                    
+
                     for eq_steps in args.eq_steps {
                         let args = cli::ArgsPhase::parse_from(env::args().skip(1));
 
                         children.push(thread::spawn(move || {
-                            match run_phase(rand_seed, &args, network_type, eq_steps) {
+                            match run_phase(rand_seed, &args, network_type, eq_steps, -1.) {
+                                Err(e) => eprintln!("{}", e),
+                                Ok(p) => {
+                                    print!("{} ", p)
+                                }
+                            }
+                        }));
+                    }
+                }
+            }
+
+            print!("{} ", simulation_type);
+
+            for child in children {
+                child.join().unwrap();
+            }
+
+            Ok("".to_string())
+        }
+        Some(simulation_type) if simulation_type.as_str() == "relax" => {
+            let mut children = vec![];
+            for network_type in vec![NetworkType::Irregular] {
+                let args = cli::ArgsPhase::parse_from(env::args().skip(1));
+
+                for rand_seed in args.seeds {
+                    let args = cli::ArgsPhase::parse_from(env::args().skip(1));
+
+                    for eq_steps in args.eq_steps {
+                        let args = cli::ArgsPhase::parse_from(env::args().skip(1));
+
+                        children.push(thread::spawn(move || {
+                            match run_relax(rand_seed, &args, network_type, eq_steps) {
                                 Err(e) => eprintln!("{}", e),
                                 Ok(p) => {
                                     print!("{} ", p)

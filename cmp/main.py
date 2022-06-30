@@ -1,12 +1,14 @@
 #!/bin/python3
 import cmp_hys
-import cmp_phase as phase
+import cmp_phase
+import cmp_relax
 import sys
 import pathlib
 
 modes = {
   'hys': cmp_hys.main,
-  'phase': phase.main
+  'phase': cmp_phase.main,
+  'relax': cmp_relax.main
 }
 
 def main(mode: str, *paths: list[str]):
@@ -17,7 +19,7 @@ def print_usage():
   print(f'usage: ./main.py mode path [paths]\nmode : phase, hys')
 
 def are_arguments_valid() -> [bool, str]:
-  if len(sys.argv) <= 3: 
+  if len(sys.argv) < 3: 
     return [False, 'Too few arguments; expected at least 2']
   
   mode = sys.argv[1]
@@ -36,6 +38,7 @@ if __name__ == '__main__':
   valid, error_msg = are_arguments_valid()
 
   if not valid:
+    print(error_msg)
     print_usage()
     exit(1)
 

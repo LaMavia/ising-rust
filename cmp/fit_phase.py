@@ -15,7 +15,7 @@ def slice_data(xs, ys):
       break
 
   pos_len = len(valid)
-  left_lim = len([v for v in valid if v > 1])
+  left_lim = len([v for v in valid if v > 0.96])
   d = 1
 
   return xs[left_lim:pos_len:d], ys[left_lim:pos_len:d]

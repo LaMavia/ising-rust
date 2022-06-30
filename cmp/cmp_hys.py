@@ -7,7 +7,6 @@ import sys
 import pathlib
 import plot_constants
 
-
 def plot(path, ax, colour, name, label):
   df = pd.read_csv(path)
   hs = list(df[df.columns[0]])
