@@ -157,8 +157,9 @@ impl Network {
         self.spins[(x, y)]
     }
 
-    pub fn flip_spin(&mut self, (x, y): (usize, usize)) {
-        self.spins[(x, y)] *= -1
+    pub fn flip_spin(&mut self, (x, y): (usize, usize)) -> i8 {
+        self.spins[(x, y)] *= -1;
+        self.spins[(x, y)]
     }
 
     pub fn get_deg_mse(&self, expected_deg: f64) -> f64 {

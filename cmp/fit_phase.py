@@ -20,10 +20,11 @@ def slice_data(xs, ys):
 
   return xs[left_lim:pos_len:d], ys[left_lim:pos_len:d]
 
-def fit_plot(xs, ys, bounds):
+def fit_plot(xs, ys, bounds, f=mt_fit):
   xn, yn = slice_data(xs, ys)
   
-  popt, _ = curve_fit(mt_fit, xn, yn, bounds=bounds, maxfev=10000) 
-  m0, tc, b = popt
-  print(f'M_0={m0}, T_C={tc}, β={b}')
-  return xn, [mt_fit(t, *popt) for t in xn], popt
+  popt, _ = curve_fit(f, xn, yn, bounds=bounds, maxfev=10000) 
+  # m0, tc, b = popt
+  print(popt)
+  # print(f'M_0={m0}, T_C={tc}, β={b}')
+  return xn, [f(t, *popt) for t in xn], popt

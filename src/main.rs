@@ -1,12 +1,16 @@
+mod child;
 mod cli;
 mod descriptor;
 mod matrix;
 mod network;
 mod simulation;
 
+use std::sync::mpsc::{self, Sender};
 use std::thread;
+use std::time::Duration;
 use std::{env, error::Error, fs, path::Path};
 
+use child::ChildMsg;
 use clap::*;
 use cli::ArgsHysteresis;
 use descriptor::PhaseDescriptor;
@@ -14,6 +18,7 @@ use network::NetworkType;
 use rand::SeedableRng;
 use simulation::{Simulation, SimulationConfig};
 
+use crate::child::Child;
 use crate::cli::{ArgError, ArgsPhase};
 
 // add extra params, split into two
@@ -62,12 +67,12 @@ fn prepare_data_path(data_dir: &String) -> Result<String, Box<dyn Error>> {
 
 fn eq_threshold_of_type(network_type: NetworkType) -> f64 {
     match network_type {
-        NetworkType::Regular => 0.0001,
-        NetworkType::Irregular => 0.007,
+        NetworkType::Regular => 0.000001,
+        NetworkType::Irregular => 0.000001,
     }
 }
 
-fn run_relax(
+/* fn run_relax(
     rand_seed: u64,
     args: &ArgsPhase,
     network_type: NetworkType,
@@ -130,13 +135,15 @@ fn run_relax(
         Err(e) => Err(e),
     }
 }
-
+ */
 fn run_phase(
     rand_seed: u64,
     args: &ArgsPhase,
     network_type: NetworkType,
     eq_steps: usize,
     s0: f64,
+    tx: Sender<ChildMsg>,
+    name: String
 ) -> Result<String, Box<dyn Error>> {
     let mut rand = rand_chacha::ChaCha20Rng::seed_from_u64(rand_seed);
 
@@ -152,6 +159,8 @@ fn run_phase(
             eq_threshold: eq_threshold_of_type(network_type),
         },
         &mut rand,
+        name,
+        tx
     );
 
     let data_dir_str = make_data_path_phase(
@@ -173,7 +182,7 @@ fn run_phase(
             t_step: args.t_step,
             s0,
         },
-        &mut rand,
+        &mut rand
     ) {
         Ok(_) => {
             let desc_path_str = format!("{data_dir_str}/desc.json");
@@ -190,13 +199,21 @@ fn run_phase(
 
             desc.save()?;
 
+            s.tx.send(ChildMsg {
+                name: s.name.to_owned(),
+                msg: desc_path_str.to_owned(),
+                done: true,
+            })?;
+
+            thread::sleep(Duration::from_millis(5));
+
             Ok(desc_path_str)
         }
         Err(e) => Err(e),
     }
 }
 
-fn run_hysteresis(
+/* fn run_hysteresis(
     rand_seed: u64,
     args: &ArgsHysteresis,
     network_type: NetworkType,
@@ -240,14 +257,15 @@ fn run_hysteresis(
         Err(e) => Err(e),
     }
 }
-
+ */
 fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
     let rand_seed = 2;
+    let mut children = vec![];
+    let (tx, rx) = mpsc::channel::<ChildMsg>();
 
     let result: Result<String, Box<dyn Error>> = match args.get(1) {
-        Some(simulation_type) if simulation_type.as_str() == "hys" => {
-            let mut children = vec![];
+        /* Some(simulation_type) if simulation_type.as_str() == "hys" => {
             for network_type in vec![NetworkType::Regular, NetworkType::Irregular] {
                 let args = cli::ArgsHysteresis::parse_from(env::args().skip(1));
                 let temps = args.temps;
@@ -268,14 +286,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             print!("{} ", simulation_type);
 
-            for child in children {
-                child.join().unwrap();
-            }
-
             Ok("".to_string())
-        }
+        } */
         Some(simulation_type) if simulation_type.as_str() == "phase" => {
-            let mut children = vec![];
             for network_type in vec![NetworkType::Regular, NetworkType::Irregular] {
                 let args = cli::ArgsPhase::parse_from(env::args().skip(1));
 
@@ -285,28 +298,31 @@ fn main() -> Result<(), Box<dyn Error>> {
                     for eq_steps in args.eq_steps {
                         let args = cli::ArgsPhase::parse_from(env::args().skip(1));
 
-                        children.push(thread::spawn(move || {
-                            match run_phase(rand_seed, &args, network_type, eq_steps, -1.) {
+                        let tx_ = tx.clone();
+                        let name = format!("{}, {}", network_type.to_string(), rand_seed);
+
+                        children.push(Child::make(
+                            name.to_owned(),
+                            move || match run_phase(
+                                rand_seed,
+                                &args,
+                                network_type,
+                                eq_steps,
+                                -1.,
+                                tx_,
+                                name
+                            ) {
                                 Err(e) => eprintln!("{}", e),
-                                Ok(p) => {
-                                    print!("{} ", p)
-                                }
-                            }
-                        }));
+                                Ok(p) => (),
+                            },
+                        ));
                     }
                 }
             }
 
-            print!("{} ", simulation_type);
-
-            for child in children {
-                child.join().unwrap();
-            }
-
-            Ok("".to_string())
+            Ok(simulation_type.to_string())
         }
-        Some(simulation_type) if simulation_type.as_str() == "relax" => {
-            let mut children = vec![];
+        /* Some(simulation_type) if simulation_type.as_str() == "relax" => {
             for network_type in vec![NetworkType::Irregular] {
                 let args = cli::ArgsPhase::parse_from(env::args().skip(1));
 
@@ -330,12 +346,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             print!("{} ", simulation_type);
 
-            for child in children {
-                child.join().unwrap();
-            }
-
             Ok("".to_string())
-        }
+        } */
         x => {
             eprintln!("unknown simulation type {:?}", x);
             Err(Box::new(ArgError {}))
@@ -344,6 +356,33 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     match result {
         Err(e) => Err(e),
-        Ok(r) => Ok(println!("{}", r)),
+        Ok(r) => {
+            for r in rx.iter() {
+                // clear the screen
+                eprint!("\x1B[2J\x1B[1;1H");
+
+                let mut all_done = true;
+
+                
+                for child in children.iter_mut() {
+                    child.update(&r);
+                    eprint!("[{}]: {}\r\n", child.name, child.msg);
+
+                    all_done = all_done && child.done;
+                }
+
+                if all_done {
+                    break;
+                }
+            }
+
+            print!("{} ", r);
+
+            for child in children.iter() {
+                print!("{} ", child.msg);
+            }
+
+            Ok(())
+        }
     }
 }

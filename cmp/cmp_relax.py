@@ -1,6 +1,7 @@
 #!/bin/python3
 
 import matplotlib.pyplot as plt
+from matplotlib import cm
 import numpy as np
 import pandas as pd
 import sys
@@ -9,6 +10,7 @@ import json
 from scipy.optimize import curve_fit
 import plot_constants
 from fit_phase import curve_fit, fit_plot, mt_fit, slice_data
+from itertools import groupby
 
 # calcs b - a
 def calc_diff(a, b):
@@ -29,27 +31,31 @@ def mt_fit(t, m0, tc, b):
 
   return m0 * np.sign(v) * np.abs(v) ** b
 
-def plot(path, ax, colour, name, label, bounds):
+def ext_avg(xs):
+  m, s, M = reduce(lambda u, x: (min(u[0], x), u[1] + x, max(u[2], x)), xs, (float('inf'), 0, float('-inf')))
+  return m, s/len(xs), M
+
+def plot(path, ax, fig, colour, name, label, bounds):
   df = pd.read_csv(path)
 
-  temps = list(df["T"])
-  ts = list(df["t"])
-  hs = list(df["E"])
+  ts, etas = [], []
+  for t, e in [(t, min(*[p[1] for p in g])) for t, g in groupby(zip(list(df['T']), list(df["η"])), key=lambda p: p[0])]:
+    if e > 0:
+      ts.append(t)
+      etas.append(e)
 
-  ax.set_xlabel("t")
-  ax.set_ylabel("T")
-  ax.set_zlabel("E")
+  ax.set_xlabel("T")
+  ax.set_ylabel("η")
 
-  # plot the data
-  ax.scatter(ts, temps, hs, marker='.', color=(*colour, 0.3), label=f'[{name}] {label}')
+  ax.scatter(ts, etas, marker='.', color=(*colour, 0.3), label=f'[{name}] {label}')
+  print(path)
 
   # plot a fitted line
-  # ts_fit, ms_fit, fit_params = fit_plot(ts, ms, bounds)
-  # m0, tc, beta = fit_params
-
-  # ax.plot(ts_fit, ms_fit, linestyle='dashed',
+  # ts_fit, etas_fit, fit_params = fit_plot(ts, etas, bounds, f=lambda x, b, c: np.arctan(x - b) + c)
+# 
+  # ax.plot(ts_fit, etas_fit, linestyle='dashed',
   #   color=(*[max(c - 0.2, 0) for c in colour], 1),
-  #   label=f'[{name}] fit(M_0={round(m0, 4)}, T_C={round(tc, 4)}, β={round(beta, 4)})'
+  #   label=f'[{name}] fit({fit_params})'
   # )
 
 
@@ -61,7 +67,7 @@ def main(paths: list[str]):
   colour_keys = list(colours.keys())
 
   fig = plt.figure(figsize=(10,7), dpi=300)
-  ax = fig.add_subplot(projection='3d')
+  ax = fig.add_subplot()
   
   ax.grid(which='both')
 
@@ -73,20 +79,17 @@ def main(paths: list[str]):
     plot(
       path=desc['data_path'],
       ax=ax,
+      fig=fig,
       colour=colours[colour_keys[(i - 1) % len(colour_keys)]],
       name=i,
       label=desc['data_path'],
-      bounds=(0.001, 5)
+      bounds=(0, float('inf'))
     )
 
-  ax.legend()
+  # ax.legend()
   fig.tight_layout()
 
-  for ii in range(0,360,1):
-    ax.view_init(elev=10., azim=ii)
-    plt.savefig(f'movie{ii}.png')
-
-  # plt.savefig('plot.png', dpi=300)
+  plt.savefig('plot_relax.png', dpi=300)
 
   #plt.show()
 
