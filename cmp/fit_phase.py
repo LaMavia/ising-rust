@@ -23,7 +23,7 @@ def slice_data(xs, ys):
 def fit_plot(xs, ys, bounds, f=mt_fit):
   xn, yn = slice_data(xs, ys)
   
-  popt, _ = curve_fit(f, xn, yn, bounds=bounds, maxfev=10000) 
+  popt, _ = curve_fit(f, xn, yn, bounds=bounds, maxfev=1e12) 
   # m0, tc, b = popt
   print(popt)
   # print(f'M_0={m0}, T_C={tc}, β={b}')

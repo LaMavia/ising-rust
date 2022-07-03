@@ -22,6 +22,9 @@ pub struct ArgsHysteresis {
 
     #[clap(short, long, default_value_t = 0.01f64)]
     pub h_step: f64,
+
+    #[clap(long, multiple_values=true)]
+    pub seeds: Vec<u64>
 }
 
 #[derive(Parser, Debug, Serialize)]

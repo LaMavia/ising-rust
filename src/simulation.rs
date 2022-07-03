@@ -42,6 +42,7 @@ pub struct Simulation {
     pub network: Network,
     pub config: SimulationConfig,
     pub time: u128,
+    pub n: u128,
     pub spin_sum: i64,
     pub ham: f64,
     pub name: String,
@@ -49,7 +50,13 @@ pub struct Simulation {
 }
 
 impl Simulation {
-    pub fn new(size: usize, config: SimulationConfig, rand: &mut ChaCha20Rng, name: String, tx: Sender<ChildMsg>) -> Self {
+    pub fn new(
+        size: usize,
+        config: SimulationConfig,
+        rand: &mut ChaCha20Rng,
+        name: String,
+        tx: Sender<ChildMsg>,
+    ) -> Self {
         Simulation {
             network: Network::new(size, &config.network_type, rand),
             config,
@@ -57,7 +64,8 @@ impl Simulation {
             spin_sum: 0,
             ham: 0.,
             name,
-            tx
+            tx,
+            n: 0
         }
     }
 
@@ -115,36 +123,38 @@ impl Simulation {
         }
     }
 
-    pub fn snapshot_hysteresis(&mut self) -> Vec<f64> {
+    pub fn snapshot_hysteresis(&mut self) -> Result<Vec<f64>, Box<dyn Error>> {
         let h = self.config.h;
         let m = self.mag();
 
-        eprintln!(
-            "H: {}, M: {}, deg_MSE: {}, deg_avg: {}",
-            h, m, self.network.deg_mse, self.network.deg_avg
-        );
+        self.tx.send(ChildMsg::make(
+            self.name.to_owned(),
+            format!(
+                "H: {}, M: {}, deg_MSE: {}, deg_avg: {}, t: {}",
+                h, m, self.network.deg_mse, self.network.deg_avg, self.time
+            ),
+            false
+        ))?;
 
-        vec![h, m]
+        Ok(vec![h, m])
     }
 
-    pub fn snapshot_phase(
-        &mut self
-    ) -> Result<Vec<f64>, Box<dyn Error>> {
+    pub fn snapshot_phase(&mut self) -> Result<Vec<f64>, Box<dyn Error>> {
         let temp = self.config.temp;
         let m = self.mag();
 
         self.tx.send(ChildMsg::make(
             self.name.to_owned(),
             format!(
-                "T: {}, M: {}, deg_MSE: {}, deg_avg: {}",
-                temp, m, self.network.deg_mse, self.network.deg_avg
+                "T: {}, M: {}, deg_MSE: {}, deg_avg: {}, t: {}, n: {}",
+                temp, m, self.network.deg_mse, self.network.deg_avg, self.time, self.n
             ),
             false,
         ))?;
 
         thread::sleep(Duration::from_nanos(1));
 
-        Ok(vec![self.time as f64, temp, m])
+        Ok(vec![self.time as f64, self.n as f64, temp, m, self.ham])
     }
 
     pub fn snapshot_relaxation(&mut self, h_prev: f64) -> Result<Vec<f64>, Box<dyn Error>> {
@@ -245,11 +255,6 @@ impl Simulation {
 
             let h_new = self.calc_h();
 
-            if self.network.deg_avg != 4. {
-                self.network.plot_spins()?;
-                eprintln!("{}", self.measure_equilibrium(h, h_new));
-            }
-
             if self.is_at_equilibrium(self.measure_equilibrium(h, h_new)) {
                 break;
             }
@@ -259,6 +264,7 @@ impl Simulation {
 
         while !(self.config.h >= config.h_max && saw_max) {
             let is_max = self.config.h >= config.h_max || self.config.h <= config.h_min;
+            self.time = 0;
 
             if is_max {
                 step_direction *= -1f64;
@@ -271,15 +277,15 @@ impl Simulation {
 
             loop {
                 self.mc_iter(rand);
+                self.time += 1;
 
                 let h_new = self.calc_h();
 
                 if self.network.deg_avg != 4. {
                     self.network.plot_spins()?;
-                    // eprintln!("{}", self.measure_equilibrium(h, h_new));
                 }
 
-                if self.is_at_equilibrium(self.measure_equilibrium(h, h_new)) {
+                if self.is_at_equilibrium(self.measure_equilibrium(h, h_new)) || self.time > (1e8 as u128) {
                     break;
                 }
 
@@ -287,7 +293,7 @@ impl Simulation {
             }
 
             // save
-            data_writer.serialize(self.snapshot_hysteresis())?;
+            data_writer.serialize(self.snapshot_hysteresis()?)?;
 
             // step
             self.config.h =
@@ -303,11 +309,11 @@ impl Simulation {
         &mut self,
         data_dist_path: &Path,
         config: PhaseConfig,
-        rand: &mut ChaCha20Rng
+        rand: &mut ChaCha20Rng,
     ) -> Result<(), Box<dyn Error>> {
         let mut data_writer = Writer::from_path(data_dist_path)?;
         // Write header
-        data_writer.write_record(&["t", "T", "M"])?;
+        data_writer.write_record(&["t", "n", "T", "M", "E"])?;
         data_writer.flush()?;
 
         for x in 0..self.network.size {
@@ -322,9 +328,10 @@ impl Simulation {
         while self.mag() >= 0. {
             // simulate
             let mut h_prev = self.ham;
-            self.time = 0;
+            self.n = 0;
             loop {
                 self.time += 1;
+                self.n += 1;
                 self.mc_iter(rand);
 
                 let h_new = self.ham;
@@ -339,9 +346,7 @@ impl Simulation {
             }
 
             // save
-            data_writer.serialize(
-                self.snapshot_phase()?,
-            )?;
+            data_writer.serialize(self.snapshot_phase()?)?;
 
             // step
             self.config.temp += config.t_step;

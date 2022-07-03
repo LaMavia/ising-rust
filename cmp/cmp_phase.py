@@ -11,6 +11,7 @@ import plot_constants
 from fit_phase import curve_fit, fit_plot, mt_fit, slice_data
 from functools import reduce
 import re
+from dataclasses import dataclass, field
 
 # calcs b - a
 def calc_diff(a, b):
@@ -55,9 +56,9 @@ def plot(path, ax, colour, name, label, bounds):
     label=f'[{name}] fit(M_0={round(m0, 4)}, T_C={round(tc, 4)}, β={round(beta, 4)})'
   )
 
-def ext_avg(xs):
+def ext_avg(xs, length=None):
   m, s, M = reduce(lambda u, x: (min(u[0], x), u[1] + x, max(u[2], x)), xs, (float('inf'), 0, float('-inf')))
-  return m, s/len(xs), M
+  return m, s/(length or len(xs)), M
 
 def plot_avg_err(paths, ax, colour, name, label, bounds):
   t_label, m_label = 'T', 'M'
@@ -71,10 +72,13 @@ def plot_avg_err(paths, ax, colour, name, label, bounds):
 
     ts_new = df[t_label]
     ts = ts_new if len(ts_new) > len(ts) else ts
+
+    #if len(ms := ) > 1 or len(paths) == 1:
     mss.append(list(df[m_label]))
 
   for i in range(0, max(len(ms) for ms in mss)):
     mms = [ms[i] for ms in mss if i < len(ms)]
+
     inf, m_avg, sup = ext_avg(mms)
 
     ms.append(m_avg)
@@ -85,7 +89,7 @@ def plot_avg_err(paths, ax, colour, name, label, bounds):
   ax.set_ylabel(m_label)
 
   # plot the data
-  ax.errorbar(ts, ms, marker='o', color=(*colour, 0.1), label=f'[{name}] {label}', yerr=errs)
+  ax.errorbar(ts, ms, marker='.', color=(*colour, 0.1), label=f'[{name}] {label}', yerr=errs)
 
   # plot a fitted line
   ts_fit, ms_fit, fit_params = fit_plot(ts, ms, bounds)
@@ -96,10 +100,58 @@ def plot_avg_err(paths, ax, colour, name, label, bounds):
     label=f'[{name}] fit(M_0={round(m0, 4)}, T_C={round(tc, 4)}, β={round(beta, 4)})'
   )
 
+def plot_dist(group, ax, fig, colour, name, label, bounds):
+  @dataclass
+  class DataPoint:
+    ts: list[float]
+    ms: list[float]
+    deg_avg: float
+    deg_mse: float
+    seed: int
+
+  ax_main, ax_dist = fig.get_axes()
+  t_label, m_label = 'T', 'M'
+  data = []
+
+  for path in group.paths:
+    df = pd.read_csv(path)
+
+    data.append(DataPoint(ts=df['T'], ms=df['M'], deg_avg=group.desc['deg_avg'], deg_mse=group.desc['deg_mse'], seed=group.desc['seed']))
+
+  ax_main.set_xlabel(t_label)
+  ax_main.set_ylabel(m_label)
+
+  for dp in data:
+    # plot the data
+    # ax_.errorbar(ts, ms, marker='.', color=(*colour, 0.1), label=f'[{name}] {label}', yerr=errs)
+    label = f'[{name}] seed={dp.seed} deg_avg={dp.deg_avg}'
+    ax_main.scatter(dp.ts, dp.ms, marker='.', color=(*colour, 0.1), label=label)
+
+    try:
+      # plot a fitted line
+      print(len(dp.ms))
+      ts_fit, ms_fit, fit_params = fit_plot(dp.ts, dp.ms, bounds)
+      m0, tc, beta = fit_params
+
+      ax_main.plot(ts_fit, ms_fit, linestyle='dashed',
+        color=(*[max(c - 0.2, 0) for c in colour], 1),
+        label=f'[{name}] fit(M_0={round(m0, 4)}, T_C={round(tc, 4)}, β={round(beta, 4)})'
+      )
+    except:
+      print(f'Failed to fit a curve; seed={dp.seed}')
+
+    ax_dist.scatter(
+      [dp.deg_avg],
+      [tc],
+      color=(*colour, 0.1), label=label
+    )
+
+
+@dataclass
 class Group:
-  def __init__(self, pattern):
-    self.pattern = pattern
-    self.paths = []
+  pattern: str
+  paths: list[str] = field(default_factory=list)
+  desc: dict = field(default_factory=dict)
 
 def main(paths: list[str]):
   plt.rcParams.update({'lines.markeredgewidth': 1})
@@ -107,10 +159,10 @@ def main(paths: list[str]):
   colours = plot_constants.plot_colours
   colour_keys = list(colours.keys())
 
-  fig, ax = plt.subplots(figsize=(10,7), dpi=300)
+  fig, (ax, ax2) = plt.subplots(1, 2, figsize=(16,7), dpi=300) # subplots(figsize=(10,7), dpi=300)
   ax.grid(which='both')
 
-  groups = [Group('/regular/'), Group('/irregular/')]
+  groups = [Group(pattern='/regular/'), Group(pattern='/irregular/')]
 
   for path in paths:
     for group in groups:
@@ -120,19 +172,21 @@ def main(paths: list[str]):
         f.close()
 
         group.paths.append(desc['data_path'])
+        group.desc = desc
         break
 
   for group, i in zip([g for g in groups if len(g.paths) > 0], range(1, len(paths) + 1)):
-    plot_avg_err(
-      paths=group.paths,
+    plot_dist(
+      group=group,
       ax=ax,
+      fig=fig,
       colour=colours[colour_keys[(i - 1) % len(colour_keys)]],
       name=i,
       label=group.pattern,
-      bounds=(0.000000001, 5)
+      bounds=(1e-12, 5)
     )
 
-  ax.legend(loc='lower left')
+  # ax.legend(loc='lower left')
   fig.tight_layout()
   plt.savefig('plot.png', dpi=300)
 

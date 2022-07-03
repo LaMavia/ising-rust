@@ -6,6 +6,7 @@ import pandas as pd
 import sys
 import pathlib
 import plot_constants
+import json
 
 def plot(path, ax, colour, name, label):
   df = pd.read_csv(path)
@@ -26,7 +27,11 @@ def main(paths):
   colour_keys = list(colours.keys())
 
   for path, i in zip(paths, range(1, len(paths) + 1)):
-    plot(path=path, ax=ax, colour=colours[colour_keys[(i - 1) % len(colour_keys)]], name=i, label=path)
+    f = open(path, 'r')
+    desc = json.loads(f.read())
+    f.close()
+
+    plot(path=desc['data_path'], ax=ax, colour=colours[colour_keys[(i - 1) % len(colour_keys)]], name=i, label=desc['data_path'])
 
   ax.legend(loc='lower center', bbox_to_anchor=(0.5, -len(paths)/15))
   fig.tight_layout()
