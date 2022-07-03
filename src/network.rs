@@ -1,4 +1,4 @@
-use std::{error::Error, io, str::FromStr};
+use std::{collections::HashMap, error::Error, hash::Hash, io, iter::Map, str::FromStr};
 
 use crate::matrix::{index_of_pos, Matrix};
 use plotters::prelude::*;
@@ -45,7 +45,7 @@ pub struct Network {
     pub spins: Matrix<i8>,
     pub lattice: Matrix<Vec<usize>>,
     pub deg_mse: f64,
-    pub deg_avg: f64
+    pub deg_avg: f64,
 }
 
 impl Network {
@@ -66,7 +66,7 @@ impl Network {
 
         for ix in 0..size {
             for iy in 0..size {
-                for _ in 0..4 {
+                for _ in 0..8 {
                     rng.gen::<i64>();
                 }
 
@@ -92,6 +92,35 @@ impl Network {
     }
 
     fn make_lattice_irregular(size: usize, rng: &mut ChaCha20Rng) -> Matrix<Vec<usize>> {
+        let mut m_conn = Matrix::new(size, size, |((width, _), (xi, yi))| {
+            let mut map = HashMap::new() as HashMap<usize, bool>;
+
+            let x = xi as i64;
+            let y = yi as i64;
+
+            for (pos_x, pos_y) in vec![
+                (x - 1, y),
+                (x + 1, y),
+                (x, y - 1),
+                (x, y + 1),
+                (x - 1, y - 1),
+                (x - 1, y + 1),
+                (x + 1, y - 1),
+                (x + 1, y + 1),
+            ]
+            .into_iter()
+            {
+                map.insert(index_of_pos(
+                    width,
+                    (
+                        pos_x.rem_euclid(width as i64) as usize,
+                        pos_y.rem_euclid(width as i64) as usize,
+                    ),
+                ), false);
+            }
+
+            map
+        });
         let mut m = Matrix::new(size, size, |_| vec![]);
 
         for ix in 0..size {
@@ -99,7 +128,9 @@ impl Network {
                 let x = ix as i64;
                 let y = iy as i64;
 
-                for (pos_x, pos_y) in vec![
+                let i = index_of_pos(size, (ix, iy));
+
+                for j in vec![
                     (x - 1, y),
                     (x + 1, y),
                     (x, y - 1),
@@ -110,17 +141,29 @@ impl Network {
                     (x + 1, y + 1),
                 ]
                 .into_iter()
-                {
-                    if !rng.gen_bool(0.5f64) {
-                        continue;
-                    }
-                    m[(ix, iy)].push(index_of_pos(
+                .map(|(pos_x, pos_y)| {
+                    index_of_pos(
                         size,
                         (
                             pos_x.rem_euclid(size as i64) as usize,
                             pos_y.rem_euclid(size as i64) as usize,
                         ),
-                    ));
+                    )
+                }) {
+                    let r = rng.gen_bool(0.5f64);
+                    let &tried = m_conn[j].get(&i).unwrap_or(&false);
+
+                    m_conn[j].insert(i, true);
+                    m_conn[i].insert(j, true);
+
+                    if tried || r {
+                        continue;
+                    } else {
+                        
+                    }
+
+                    m[i].push(j);
+                    m[j].push(i);
                 }
             }
         }
@@ -136,8 +179,8 @@ impl Network {
                 NetworkType::Regular => Network::make_lattice_regular(size, rand),
                 NetworkType::Irregular => Network::make_lattice_irregular(size, rand),
             },
-            deg_mse:0f64,
-            deg_avg:0f64
+            deg_mse: 0f64,
+            deg_avg: 0f64,
         };
 
         m.deg_mse = m.get_deg_mse(4f64);

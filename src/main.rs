@@ -68,7 +68,7 @@ fn prepare_data_path(data_dir: &String) -> Result<String, Box<dyn Error>> {
 fn eq_threshold_of_type(network_type: NetworkType) -> f64 {
     match network_type {
         NetworkType::Regular => f64::MIN_POSITIVE,
-        NetworkType::Irregular => 1e-8,
+        NetworkType::Irregular => f64::MIN_POSITIVE,
     }
 }
 
@@ -286,15 +286,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         Some(simulation_type) if simulation_type.as_str() == "hys" => {
             for network_type in vec![NetworkType::Regular, NetworkType::Irregular] {
                 let args = cli::ArgsHysteresis::parse_from(env::args().skip(1));
-                
-                for seed in args.seeds.into_iter() {
 
+                for seed in args.seeds.into_iter() {
                     let temps = args.temps.to_owned();
 
                     for temp in temps.into_iter() {
                         let args = cli::ArgsHysteresis::parse_from(env::args().skip(1));
 
-                        let name = format!("{}, seed={}, T={}", network_type.to_string(), seed, temp);
+                        let name =
+                            format!("{}, seed={}, T={}", network_type.to_string(), seed, temp);
                         let tx_ = tx.clone();
 
                         children.push(Child::make(name.to_owned(), move || {

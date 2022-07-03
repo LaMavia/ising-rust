@@ -247,6 +247,7 @@ impl Simulation {
         let mut step_direction = 1f64;
 
         let precision = 1e9f64;
+        self.time = 0;
 
         let mut h = self.calc_h();
 
@@ -264,7 +265,7 @@ impl Simulation {
 
         while !(self.config.h >= config.h_max && saw_max) {
             let is_max = self.config.h >= config.h_max || self.config.h <= config.h_min;
-            self.time = 0;
+            self.n = 0;
 
             if is_max {
                 step_direction *= -1f64;
@@ -278,6 +279,7 @@ impl Simulation {
             loop {
                 self.mc_iter(rand);
                 self.time += 1;
+                self.n += 1;
 
                 let h_new = self.calc_h();
 
@@ -285,7 +287,7 @@ impl Simulation {
                     self.network.plot_spins()?;
                 }
 
-                if self.is_at_equilibrium(self.measure_equilibrium(h, h_new)) || self.time > (1e8 as u128) {
+                if self.is_at_equilibrium(self.measure_equilibrium(h, h_new)) || self.n > (1e8 as u128) {
                     break;
                 }
 
@@ -332,13 +334,14 @@ impl Simulation {
             loop {
                 self.time += 1;
                 self.n += 1;
+                
                 self.mc_iter(rand);
 
                 let h_new = self.ham;
 
                 let m = self.measure_equilibrium(h_prev, h_new);
 
-                if self.is_at_equilibrium(m) || self.time >= (1e8 as u128) {
+                if self.is_at_equilibrium(m) || self.n >= (1e8 as u128) {
                     break;
                 }
 

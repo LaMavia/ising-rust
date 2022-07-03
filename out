@@ -1,368 +1,100 @@
-   Compiling ising v0.1.0 (/home/mavi/proyectos/rust/ising)
-warning: associated function is never used: `plot_spins`
-   --> src/network.rs:176:12
-    |
-176 |     pub fn plot_spins(&self) -> Result<(), Box<dyn Error>> {
-    |            ^^^^^^^^^^
-    |
-    = note: `#[warn(dead_code)]` on by default
-
-warning: associated function is never used: `mc_step`
-  --> src/simulation.rs:92:12
-   |
-92 |     pub fn mc_step(&mut self, rng: &mut ChaCha20Rng) {
-   |            ^^^^^^^
-
-warning: associated function is never used: `mc_step_chb`
-  --> src/simulation.rs:99:12
-   |
-99 |     pub fn mc_step_chb(&mut self, rng: &mut ChaCha20Rng) {
-   |            ^^^^^^^^^^^
-
-warning: `ising` (bin "ising") generated 3 warnings
-    Finished release [optimized] target(s) in 1.65s
-     Running `target/release/ising phase --t-max=2.55 --size=100 --t-step=0.001 --seeds 2 --eq-steps 10`
-T: 0.0001, M: 1, deg_MSE: 0, deg_avg: 4
-t: 1; dh: 0.8548954144%
-T: 0.0011, M: 1, deg_MSE: 0, deg_avg: 4
-t: 2; dh: 0.9721765108%
-T: 0.0021, M: 1, deg_MSE: 0, deg_avg: 4
-t: 3; dh: 0.8754839199%
-T: 0.0031, M: 1, deg_MSE: 0, deg_avg: 4
-t: 4; dh: 0.8245858100%
-T: 0.004, M: 1, deg_MSE: 0, deg_avg: 4
-t: 5; dh: 0.8454625997%
-T: 0.005, M: 1, deg_MSE: 0, deg_avg: 4
-t: 6; dh: 0.8498368617%
-T: 0.006, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.007, M: 1, deg_MSE: 0, deg_avg: 4
-t: 7; dh: 0.8403574050%
-T: 0.008, M: 1, deg_MSE: 0, deg_avg: 4
-t: 8; dh: 0.7386981710%
-T: 0.009, M: 1, deg_MSE: 0, deg_avg: 4
-t: 9; dh: 0.8045133706%
-T: 0.0099, M: 1, deg_MSE: 0, deg_avg: 4
-t: 10; dh: 0.8198173123%
-T: 0.0109, M: 1, deg_MSE: 0, deg_avg: 4
-t: 11; dh: 0.7741152066%
-T: 0.0119, M: 1, deg_MSE: 0, deg_avg: 4
-t: 12; dh: 0.8500518633%
-T: 0.0129, M: 1, deg_MSE: 0, deg_avg: 4
-t: 13; dh: 0.8907558772%
-T: 0.0139, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.0149, M: 1, deg_MSE: 0, deg_avg: 4
-t: 14; dh: 0.8248361713%
-T: 0.0159, M: 1, deg_MSE: 0, deg_avg: 4
-t: 15; dh: 0.6170497939%
-T: 0.0001, M: 0.9968, deg_MSE: 2.0171, deg_avg: 3.9927
-T: 0.0169, M: 1, deg_MSE: 0, deg_avg: 4
-t: 16; dh: 0.8399746996%
-T: 0.0179, M: 1, deg_MSE: 0, deg_avg: 4
-t: 17; dh: 0.7690167211%
-T: 0.0189, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.0199, M: 1, deg_MSE: 0, deg_avg: 4
-t: 18; dh: 0.8144269924%
-T: 0.0209, M: 1, deg_MSE: 0, deg_avg: 4
-t: 19; dh: 0.7386981710%
-T: 0.0219, M: 1, deg_MSE: 0, deg_avg: 4
-t: 20; dh: 0.8502669737%
-T: 0.0229, M: 1, deg_MSE: 0, deg_avg: 4
-t: 21; dh: 0.8503530484%
-T: 0.0239, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.0249, M: 1, deg_MSE: 0, deg_avg: 4
-t: 22; dh: 0.7539913468%
-T: 0.0259, M: 1, deg_MSE: 0, deg_avg: 4
-t: 23; dh: 0.9263243147%
-T: 0.0269, M: 1, deg_MSE: 0, deg_avg: 4
-t: 24; dh: 0.9510560263%
-T: 0.0279, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.0289, M: 1, deg_MSE: 0, deg_avg: 4
-t: 25; dh: 0.9823033495%
-T: 0.0299, M: 1, deg_MSE: 0, deg_avg: 4
-t: 26; dh: 0.8094912853%
-T: 0.0309, M: 1, deg_MSE: 0, deg_avg: 4
-t: 27; dh: 0.8757941631%
-T: 0.0319, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.0329, M: 1, deg_MSE: 0, deg_avg: 4
-t: 28; dh: 0.8305689904%
-T: 0.0339, M: 1, deg_MSE: 0, deg_avg: 4
-t: 29; dh: 0.7438706576%
-T: 0.0349, M: 1, deg_MSE: 0, deg_avg: 4
-t: 30; dh: 0.7538006223%
-T: 0.0359, M: 1, deg_MSE: 0, deg_avg: 4
-t: 31; dh: 0.8345345573%
-T: 0.0369, M: 1, deg_MSE: 0, deg_avg: 4
-t: 32; dh: 0.8297285675%
-T: 0.0379, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.0389, M: 1, deg_MSE: 0, deg_avg: 4
-t: 33; dh: 0.8854258899%
-T: 0.0399, M: 1, deg_MSE: 0, deg_avg: 4
-t: 34; dh: 0.8344923505%
-T: 0.0409, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.0419, M: 1, deg_MSE: 0, deg_avg: 4
-t: 35; dh: 0.8599539672%
-T: 0.0429, M: 1, deg_MSE: 0, deg_avg: 4
-t: 36; dh: 0.9721765108%
-T: 0.0439, M: 1, deg_MSE: 0, deg_avg: 4
-t: 37; dh: 0.7842740405%
-T: 0.0449, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.0459, M: 1, deg_MSE: 0, deg_avg: 4
-t: 38; dh: 0.7535337699%
-T: 0.0469, M: 1, deg_MSE: 0, deg_avg: 4
-t: 39; dh: 0.9211691763%
-T: 0.0479, M: 1, deg_MSE: 0, deg_avg: 4
-t: 40; dh: 0.8908460507%
-T: 0.0489, M: 1, deg_MSE: 0, deg_avg: 4
-t: 41; dh: 0.8194855452%
-T: 0.0499, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.0509, M: 1, deg_MSE: 0, deg_avg: 4
-t: 42; dh: 0.7894137591%
-T: 0.0519, M: 1, deg_MSE: 0, deg_avg: 4
-t: 43; dh: 0.8960891026%
-T: 0.0529, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.0539, M: 1, deg_MSE: 0, deg_avg: 4
-t: 44; dh: 0.8199417943%
-T: 0.0549, M: 1, deg_MSE: 0, deg_avg: 4
-t: 45; dh: 0.8401447478%
-T: 0.0559, M: 1, deg_MSE: 0, deg_avg: 4
-t: 46; dh: 0.8956809959%
-T: 0.0569, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.0579, M: 1, deg_MSE: 0, deg_avg: 4
-t: 47; dh: 0.8959076760%
-T: 0.0589, M: 1, deg_MSE: 0, deg_avg: 4
-t: 48; dh: 0.9059392160%
-T: 0.0599, M: 1, deg_MSE: 0, deg_avg: 4
-t: 49; dh: 0.9670641250%
-T: 0.0609, M: 1, deg_MSE: 0, deg_avg: 4
-t: 50; dh: 0.7640733713%
-T: 0.0619, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.0629, M: 1, deg_MSE: 0, deg_avg: 4
-t: 51; dh: 0.9824028358%
-T: 0.0639, M: 1, deg_MSE: 0, deg_avg: 4
-t: 52; dh: 0.7032455541%
-T: 0.0649, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.0659, M: 1, deg_MSE: 0, deg_avg: 4
-t: 53; dh: 0.9006957622%
-T: 0.0669, M: 1, deg_MSE: 0, deg_avg: 4
-t: 54; dh: 0.9001036636%
-T: 0.0679, M: 1, deg_MSE: 0, deg_avg: 4
-t: 55; dh: 0.9312447807%
-T: 0.0689, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.0699, M: 1, deg_MSE: 0, deg_avg: 4
-t: 56; dh: 0.7590516914%
-T: 0.0709, M: 1, deg_MSE: 0, deg_avg: 4
-t: 57; dh: 0.7693670438%
-T: 0.0719, M: 1, deg_MSE: 0, deg_avg: 4
-t: 58; dh: 0.8758385015%
-T: 0.0729, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.0739, M: 1, deg_MSE: 0, deg_avg: 4
-t: 59; dh: 1.0127351444%
-T: 0.0749, M: 1, deg_MSE: 0, deg_avg: 4
-t: 60; dh: 0.8350836349%
-T: 0.0759, M: 1, deg_MSE: 0, deg_avg: 4
-t: 61; dh: 0.7841153408%
-T: 0.0769, M: 1, deg_MSE: 0, deg_avg: 4
-t: 62; dh: 0.9108620297%
-T: 0.0779, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.0789, M: 1, deg_MSE: 0, deg_avg: 4
-t: 63; dh: 0.9314804971%
-T: 0.0799, M: 1, deg_MSE: 0, deg_avg: 4
-t: 64; dh: 0.7892140743%
-T: 0.0809, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.0819, M: 1, deg_MSE: 0, deg_avg: 4
-t: 65; dh: 0.6928114491%
-T: 0.0011, M: 0.9974, deg_MSE: 2.0171, deg_avg: 3.9927
-T: 0.0829, M: 1, deg_MSE: 0, deg_avg: 4
-t: 66; dh: 0.7945947314%
-T: 0.0839, M: 1, deg_MSE: 0, deg_avg: 4
-t: 67; dh: 0.8652313608%
-T: 0.0849, M: 1, deg_MSE: 0, deg_avg: 4
-t: 68; dh: 0.9411764706%
-T: 0.0859, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.0869, M: 1, deg_MSE: 0, deg_avg: 4
-t: 69; dh: 0.8752181722%
-T: 0.0879, M: 1, deg_MSE: 0, deg_avg: 4
-t: 70; dh: 0.9769431298%
-T: 0.0889, M: 1, deg_MSE: 0, deg_avg: 4
-t: 71; dh: 0.8857844254%
-T: 0.0899, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.0909, M: 1, deg_MSE: 0, deg_avg: 4
-t: 72; dh: 0.8909813451%
-T: 0.0919, M: 1, deg_MSE: 0, deg_avg: 4
-t: 73; dh: 0.8252955621%
-T: 0.0929, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.0939, M: 1, deg_MSE: 0, deg_avg: 4
-t: 74; dh: 0.7892939361%
-T: 0.0949, M: 1, deg_MSE: 0, deg_avg: 4
-t: 75; dh: 0.9517782559%
-T: 0.0959, M: 1, deg_MSE: 0, deg_avg: 4
-t: 76; dh: 0.7993322035%
-T: 0.0969, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.0979, M: 1, deg_MSE: 0, deg_avg: 4
-t: 77; dh: 0.8447783089%
-T: 0.0989, M: 1, deg_MSE: 0, deg_avg: 4
-t: 78; dh: 0.8196928682%
-T: 0.0999, M: 1, deg_MSE: 0, deg_avg: 4
-t: 79; dh: 0.8806782235%
-T: 0.1009, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.1019, M: 1, deg_MSE: 0, deg_avg: 4
-t: 80; dh: 0.9821044372%
-T: 0.1029, M: 1, deg_MSE: 0, deg_avg: 4
-t: 81; dh: 0.8604762989%
-T: 0.1039, M: 1, deg_MSE: 0, deg_avg: 4
-t: 82; dh: 0.7487036803%
-T: 0.1049, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.1059, M: 1, deg_MSE: 0, deg_avg: 4
-t: 83; dh: 0.9215889814%
-T: 0.1069, M: 1, deg_MSE: 0, deg_avg: 4
-t: 84; dh: 0.8550684308%
-T: 0.1079, M: 1, deg_MSE: 0, deg_avg: 4
-t: 85; dh: 0.8449065291%
-T: 0.1089, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.1099, M: 1, deg_MSE: 0, deg_avg: 4
-t: 86; dh: 0.8500088543%
-T: 0.1109, M: 1, deg_MSE: 0, deg_avg: 4
-t: 87; dh: 0.9057558507%
-T: 0.1119, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.1129, M: 1, deg_MSE: 0, deg_avg: 4
-t: 88; dh: 0.9769925840%
-T: 0.1139, M: 1, deg_MSE: 0, deg_avg: 4
-t: 89; dh: 0.9008781031%
-T: 0.1149, M: 1, deg_MSE: 0, deg_avg: 4
-t: 90; dh: 0.7992109057%
-T: 0.1159, M: 1, deg_MSE: 0, deg_avg: 4
-t: 91; dh: 0.8705995495%
-T: 0.1169, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.1179, M: 1, deg_MSE: 0, deg_avg: 4
-t: 92; dh: 0.7689778160%
-T: 0.1189, M: 1, deg_MSE: 0, deg_avg: 4
-t: 93; dh: 0.8557178663%
-T: 0.1199, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.1209, M: 1, deg_MSE: 0, deg_avg: 4
-t: 94; dh: 0.8602585836%
-T: 0.1219, M: 1, deg_MSE: 0, deg_avg: 4
-t: 95; dh: 0.8755282269%
-T: 0.1229, M: 1, deg_MSE: 0, deg_avg: 4
-t: 96; dh: 0.8859189511%
-T: 0.1239, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.1249, M: 1, deg_MSE: 0, deg_avg: 4
-t: 97; dh: 0.9004223892%
-T: 0.1258, M: 1, deg_MSE: 0, deg_avg: 4
-t: 98; dh: 0.8500518633%
-T: 0.1268, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.1278, M: 1, deg_MSE: 0, deg_avg: 4
-t: 99; dh: 0.9310562935%
-T: 0.1288, M: 1, deg_MSE: 0, deg_avg: 4
-t: 100; dh: 0.7436072540%
-T: 0.1298, M: 1, deg_MSE: 0, deg_avg: 4
-t: 101; dh: 0.8902602494%
-T: 0.1308, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.1318, M: 1, deg_MSE: 0, deg_avg: 4
-t: 102; dh: 0.8651000430%
-T: 0.1328, M: 1, deg_MSE: 0, deg_avg: 4
-t: 103; dh: 0.8603456565%
-T: 0.1338, M: 1, deg_MSE: 0, deg_avg: 4
-t: 104; dh: 0.7994535381%
-T: 0.1348, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.1358, M: 1, deg_MSE: 0, deg_avg: 4
-t: 105; dh: 0.8349146110%
-T: 0.1368, M: 1, deg_MSE: 0, deg_avg: 4
-t: 106; dh: 0.9109081248%
-T: 0.1378, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.1388, M: 1, deg_MSE: 0, deg_avg: 4
-t: 107; dh: 0.9513929303%
-T: 0.1398, M: 1, deg_MSE: 0, deg_avg: 4
-t: 108; dh: 0.7948763385%
-T: 0.1408, M: 1, deg_MSE: 0, deg_avg: 4
-t: 109; dh: 0.8040251827%
-T: 0.1418, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.1428, M: 1, deg_MSE: 0, deg_avg: 4
-t: 110; dh: 0.8550251701%
-T: 0.1438, M: 1, deg_MSE: 0, deg_avg: 4
-t: 111; dh: 0.8603021179%
-T: 0.1448, M: 1, deg_MSE: 0, deg_avg: 4
-t: 112; dh: 0.7030321422%
-T: 0.1458, M: 1, deg_MSE: 0, deg_avg: 4
-t: 113; dh: 0.9365428911%
-T: 0.1468, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.1478, M: 1, deg_MSE: 0, deg_avg: 4
-t: 114; dh: 0.9460450763%
-T: 0.1487, M: 1, deg_MSE: 0, deg_avg: 4
-t: 115; dh: 0.9211225548%
-T: 0.1497, M: 1, deg_MSE: 0, deg_avg: 4
-t: 116; dh: 0.8907558772%
-T: 0.1507, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.1517, M: 1, deg_MSE: 0, deg_avg: 4
-t: 117; dh: 0.8499228493%
-T: 0.1527, M: 1, deg_MSE: 0, deg_avg: 4
-t: 118; dh: 1.0028617013%
-T: 0.1537, M: 1, deg_MSE: 0, deg_avg: 4
-t: 119; dh: 0.9261836678%
-T: 0.1547, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.1557, M: 1, deg_MSE: 0, deg_avg: 4
-t: 120; dh: 0.9621471072%
-T: 0.1567, M: 1, deg_MSE: 0, deg_avg: 4
-t: 121; dh: 0.9417483102%
-T: 0.1577, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.1587, M: 1, deg_MSE: 0, deg_avg: 4
-t: 122; dh: 0.8655379242%
-T: 0.1597, M: 1, deg_MSE: 0, deg_avg: 4
-t: 123; dh: 0.9110464381%
-T: 0.1607, M: 1, deg_MSE: 0, deg_avg: 4
-t: 124; dh: 0.8803663133%
-T: 0.1617, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.1627, M: 1, deg_MSE: 0, deg_avg: 4
-t: 125; dh: 0.8907558772%
-T: 0.1637, M: 1, deg_MSE: 0, deg_avg: 4
-t: 126; dh: 0.9111847933%
-T: 0.1647, M: 1, deg_MSE: 0, deg_avg: 4
-t: 127; dh: 0.7736846097%
-T: 0.1657, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.1666, M: 1, deg_MSE: 0, deg_avg: 4
-t: 128; dh: 0.7941927814%
-T: 0.1676, M: 1, deg_MSE: 0, deg_avg: 4
-t: 129; dh: 0.9262305454%
-T: 0.1686, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.1696, M: 1, deg_MSE: 0, deg_avg: 4
-t: 130; dh: 0.9672110394%
-T: 0.1706, M: 1, deg_MSE: 0, deg_avg: 4
-t: 131; dh: 0.9264650044%
-T: 0.1716, M: 1, deg_MSE: 0, deg_avg: 4
-t: 132; dh: 0.7383246100%
-T: 0.1726, M: 1, deg_MSE: 0, deg_avg: 4
-t: 133; dh: 0.8396348094%
-T: 0.1736, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.1746, M: 1, deg_MSE: 0, deg_avg: 4
-t: 134; dh: 0.9464281195%
-T: 0.1756, M: 1, deg_MSE: 0, deg_avg: 4
-t: 135; dh: 0.7691334598%
-T: 0.1766, M: 1, deg_MSE: 0, deg_avg: 4
-t: 136; dh: 0.7635710854%
-T: 0.1776, M: 1, deg_MSE: 0, deg_avg: 4
-t: 137; dh: 0.8199417943%
-T: 0.1786, M: 1, deg_MSE: 0, deg_avg: 4
-t: 138; dh: 0.9515373909%
-T: 0.1796, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.1806, M: 1, deg_MSE: 0, deg_avg: 4
-t: 139; dh: 0.7739977235%
-T: 0.1816, M: 1, deg_MSE: 0, deg_avg: 4
-t: 140; dh: 0.8910264523%
-T: 0.1826, M: 1, deg_MSE: 0, deg_avg: 4
-t: 141; dh: 0.7788595271%
-T: 0.1836, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.1846, M: 1, deg_MSE: 0, deg_avg: 4
-t: 142; dh: 0.7745462829%
-T: 0.1855, M: 1, deg_MSE: 0, deg_avg: 4
-t: 143; dh: 0.8346612034%
-T: 0.1865, M: 1, deg_MSE: 0, deg_avg: 4
-t: 144; dh: 0.7788595271%
-T: 0.1875, M: 1, deg_MSE: 0, deg_avg: 4
-T: 0.1885, M: 1, deg_MSE: 0, deg_avg: 4
-t: 145; dh: 0.8253373503%
-T: 0.1895, M: 1, deg_MSE: 0, deg_avg: 4
-t: 146; dh: 0.8806336513%
-T: 0.1905, M: 1, deg_MSE: 0, deg_avg: 4
-t: 147; dh: 0.9310091836%
-T: 0.1915, M: 1, deg_MSE: 0, deg_avg: 4
-t: 148; dh: 0.7743894724%
-T: 0.1925, M: 1, deg_MSE: 0, deg_avg: 4
+[regular, 1]: data/regular/phase/size=100_step=0.001_max=2.55_seed=1_eq=1/desc.json
+[regular, 2]: data/regular/phase/size=100_step=0.001_max=2.55_seed=2_eq=1/desc.json
+[regular, 3]: data/regular/phase/size=100_step=0.001_max=2.55_seed=3_eq=1/desc.json
+[regular, 4]: data/regular/phase/size=100_step=0.001_max=2.55_seed=4_eq=1/desc.json
+[regular, 5]: data/regular/phase/size=100_step=0.001_max=2.55_seed=5_eq=1/desc.json
+[regular, 6]: data/regular/phase/size=100_step=0.001_max=2.55_seed=6_eq=1/desc.json
+[regular, 7]: data/regular/phase/size=100_step=0.001_max=2.55_seed=7_eq=1/desc.json
+[regular, 8]: data/regular/phase/size=100_step=0.001_max=2.55_seed=8_eq=1/desc.json
+[regular, 9]: data/regular/phase/size=100_step=0.001_max=2.55_seed=9_eq=1/desc.json
+[regular, 10]: data/regular/phase/size=100_step=0.001_max=2.55_seed=10_eq=1/desc.json
+[regular, 11]: data/regular/phase/size=100_step=0.001_max=2.55_seed=11_eq=1/desc.json
+[regular, 12]: data/regular/phase/size=100_step=0.001_max=2.55_seed=12_eq=1/desc.json
+[regular, 13]: data/regular/phase/size=100_step=0.001_max=2.55_seed=13_eq=1/desc.json
+[regular, 14]: data/regular/phase/size=100_step=0.001_max=2.55_seed=14_eq=1/desc.json
+[regular, 15]: data/regular/phase/size=100_step=0.001_max=2.55_seed=15_eq=1/desc.json
+[regular, 16]: data/regular/phase/size=100_step=0.001_max=2.55_seed=16_eq=1/desc.json
+[regular, 17]: data/regular/phase/size=100_step=0.001_max=2.55_seed=17_eq=1/desc.json
+[regular, 18]: data/regular/phase/size=100_step=0.001_max=2.55_seed=18_eq=1/desc.json
+[regular, 19]: data/regular/phase/size=100_step=0.001_max=2.55_seed=19_eq=1/desc.json
+[regular, 20]: data/regular/phase/size=100_step=0.001_max=2.55_seed=20_eq=1/desc.json
+[regular, 21]: data/regular/phase/size=100_step=0.001_max=2.55_seed=21_eq=1/desc.json
+[regular, 22]: data/regular/phase/size=100_step=0.001_max=2.55_seed=22_eq=1/desc.json
+[regular, 23]: data/regular/phase/size=100_step=0.001_max=2.55_seed=23_eq=1/desc.json
+[regular, 24]: data/regular/phase/size=100_step=0.001_max=2.55_seed=24_eq=1/desc.json
+[regular, 25]: data/regular/phase/size=100_step=0.001_max=2.55_seed=25_eq=1/desc.json
+[regular, 26]: data/regular/phase/size=100_step=0.001_max=2.55_seed=26_eq=1/desc.json
+[regular, 27]: data/regular/phase/size=100_step=0.001_max=2.55_seed=27_eq=1/desc.json
+[regular, 28]: data/regular/phase/size=100_step=0.001_max=2.55_seed=28_eq=1/desc.json
+[regular, 29]: data/regular/phase/size=100_step=0.001_max=2.55_seed=29_eq=1/desc.json
+[regular, 30]: data/regular/phase/size=100_step=0.001_max=2.55_seed=30_eq=1/desc.json
+[regular, 31]: data/regular/phase/size=100_step=0.001_max=2.55_seed=31_eq=1/desc.json
+[regular, 32]: data/regular/phase/size=100_step=0.001_max=2.55_seed=32_eq=1/desc.json
+[regular, 33]: data/regular/phase/size=100_step=0.001_max=2.55_seed=33_eq=1/desc.json
+[regular, 34]: data/regular/phase/size=100_step=0.001_max=2.55_seed=34_eq=1/desc.json
+[regular, 35]: data/regular/phase/size=100_step=0.001_max=2.55_seed=35_eq=1/desc.json
+[regular, 36]: data/regular/phase/size=100_step=0.001_max=2.55_seed=36_eq=1/desc.json
+[regular, 37]: data/regular/phase/size=100_step=0.001_max=2.55_seed=37_eq=1/desc.json
+[regular, 38]: data/regular/phase/size=100_step=0.001_max=2.55_seed=38_eq=1/desc.json
+[regular, 39]: data/regular/phase/size=100_step=0.001_max=2.55_seed=39_eq=1/desc.json
+[regular, 40]: data/regular/phase/size=100_step=0.001_max=2.55_seed=40_eq=1/desc.json
+[regular, 41]: data/regular/phase/size=100_step=0.001_max=2.55_seed=41_eq=1/desc.json
+[regular, 42]: data/regular/phase/size=100_step=0.001_max=2.55_seed=42_eq=1/desc.json
+[regular, 43]: data/regular/phase/size=100_step=0.001_max=2.55_seed=43_eq=1/desc.json
+[regular, 44]: data/regular/phase/size=100_step=0.001_max=2.55_seed=44_eq=1/desc.json
+[regular, 45]: data/regular/phase/size=100_step=0.001_max=2.55_seed=45_eq=1/desc.json
+[regular, 46]: data/regular/phase/size=100_step=0.001_max=2.55_seed=46_eq=1/desc.json
+[regular, 47]: data/regular/phase/size=100_step=0.001_max=2.55_seed=47_eq=1/desc.json
+[regular, 48]: data/regular/phase/size=100_step=0.001_max=2.55_seed=48_eq=1/desc.json
+[regular, 49]: data/regular/phase/size=100_step=0.001_max=2.55_seed=49_eq=1/desc.json
+[regular, 50]: data/regular/phase/size=100_step=0.001_max=2.55_seed=50_eq=1/desc.json
+[regular, 51]: data/regular/phase/size=100_step=0.001_max=2.55_seed=51_eq=1/desc.json
+[regular, 52]: data/regular/phase/size=100_step=0.001_max=2.55_seed=52_eq=1/desc.json
+[regular, 53]: data/regular/phase/size=100_step=0.001_max=2.55_seed=53_eq=1/desc.json
+[regular, 54]: data/regular/phase/size=100_step=0.001_max=2.55_seed=54_eq=1/desc.json
+[regular, 55]: data/regular/phase/size=100_step=0.001_max=2.55_seed=55_eq=1/desc.json
+[regular, 56]: data/regular/phase/size=100_step=0.001_max=2.55_seed=56_eq=1/desc.json
+[regular, 57]: data/regular/phase/size=100_step=0.001_max=2.55_seed=57_eq=1/desc.json
+[regular, 58]: data/regular/phase/size=100_step=0.001_max=2.55_seed=58_eq=1/desc.json
+[regular, 59]: data/regular/phase/size=100_step=0.001_max=2.55_seed=59_eq=1/desc.json
+[regular, 60]: data/regular/phase/size=100_step=0.001_max=2.55_seed=60_eq=1/desc.json
+[regular, 61]: data/regular/phase/size=100_step=0.001_max=2.55_seed=61_eq=1/desc.json
+[regular, 62]: data/regular/phase/size=100_step=0.001_max=2.55_seed=62_eq=1/desc.json
+[regular, 63]: data/regular/phase/size=100_step=0.001_max=2.55_seed=63_eq=1/desc.json
+[regular, 64]: data/regular/phase/size=100_step=0.001_max=2.55_seed=64_eq=1/desc.json
+[regular, 65]: data/regular/phase/size=100_step=0.001_max=2.55_seed=65_eq=1/desc.json
+[regular, 66]: data/regular/phase/size=100_step=0.001_max=2.55_seed=66_eq=1/desc.json
+[regular, 67]: data/regular/phase/size=100_step=0.001_max=2.55_seed=67_eq=1/desc.json
+[regular, 68]: data/regular/phase/size=100_step=0.001_max=2.55_seed=68_eq=1/desc.json
+[regular, 69]: data/regular/phase/size=100_step=0.001_max=2.55_seed=69_eq=1/desc.json
+[regular, 70]: data/regular/phase/size=100_step=0.001_max=2.55_seed=70_eq=1/desc.json
+[regular, 71]: data/regular/phase/size=100_step=0.001_max=2.55_seed=71_eq=1/desc.json
+[regular, 72]: data/regular/phase/size=100_step=0.001_max=2.55_seed=72_eq=1/desc.json
+[regular, 73]: data/regular/phase/size=100_step=0.001_max=2.55_seed=73_eq=1/desc.json
+[regular, 74]: data/regular/phase/size=100_step=0.001_max=2.55_seed=74_eq=1/desc.json
+[regular, 75]: data/regular/phase/size=100_step=0.001_max=2.55_seed=75_eq=1/desc.json
+[regular, 76]: data/regular/phase/size=100_step=0.001_max=2.55_seed=76_eq=1/desc.json
+[regular, 77]: data/regular/phase/size=100_step=0.001_max=2.55_seed=77_eq=1/desc.json
+[regular, 78]: data/regular/phase/size=100_step=0.001_max=2.55_seed=78_eq=1/desc.json
+[regular, 79]: data/regular/phase/size=100_step=0.001_max=2.55_seed=79_eq=1/desc.json
+[regular, 80]: data/regular/phase/size=100_step=0.001_max=2.55_seed=80_eq=1/desc.json
+[regular, 81]: data/regular/phase/size=100_step=0.001_max=2.55_seed=81_eq=1/desc.json
+[regular, 82]: data/regular/phase/size=100_step=0.001_max=2.55_seed=82_eq=1/desc.json
+[regular, 83]: data/regular/phase/size=100_step=0.001_max=2.55_seed=83_eq=1/desc.json
+[regular, 84]: data/regular/phase/size=100_step=0.001_max=2.55_seed=84_eq=1/desc.json
+[regular, 85]: data/regular/phase/size=100_step=0.001_max=2.55_seed=85_eq=1/desc.json
+[regular, 86]: data/regular/phase/size=100_step=0.001_max=2.55_seed=86_eq=1/desc.json
+[regular, 87]: data/regular/phase/size=100_step=0.001_max=2.55_seed=87_eq=1/desc.json
+[regular, 88]: data/regular/phase/size=100_step=0.001_max=2.55_seed=88_eq=1/desc.json
+[regular, 89]: data/regular/phase/size=100_step=0.001_max=2.55_seed=89_eq=1/desc.json
+[regular, 90]: data/regular/phase/size=100_step=0.001_max=2.55_seed=90_eq=1/desc.json
+[regular, 91]: data/regular/phase/size=100_step=0.001_max=2.55_seed=91_eq=1/desc.json
+[regular, 92]: data/regular/phase/size=100_step=0.001_max=2.55_seed=92_eq=1/desc.json
+[regular, 93]: data/regular/phase/size=100_step=0.001_max=2.55_seed=93_eq=1/desc.json
+[regular, 94]: data/regular/phase/size=100_step=0.001_max=2.55_seed=94_eq=1/desc.json
+[regular, 95]: data/regular/phase/size=100_step=0.001_max=2.55_seed=95_eq=1/desc.json
+[regular, 96]: data/regular/phase/size=100_step=0.001_max=2.55_seed=96_eq=1/desc.json
+[regular, 97]: data/regular/phase/size=100_step=0.001_max=2.55_seed=97_eq=1/desc.json
+[regular, 98]: data/regular/phase/size=100_step=0.001_max=2.55_seed=98_eq=1/desc.json
+[regular, 99]: data/regular/phase/size=100_step=0.001_max=2.55_seed=99_eq=1/desc.json
+[regular, 100]: data/regular/phase/size=100_step=0.001_max=2.55_seed=100_eq=1/desc.json
