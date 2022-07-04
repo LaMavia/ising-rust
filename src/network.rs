@@ -158,8 +158,6 @@ impl Network {
 
                     if tried || r {
                         continue;
-                    } else {
-                        
                     }
 
                     m[i].push(j);

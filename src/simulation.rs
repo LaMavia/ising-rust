@@ -65,7 +65,7 @@ impl Simulation {
             ham: 0.,
             name,
             tx,
-            n: 0
+            n: 0,
         }
     }
 
@@ -130,13 +130,13 @@ impl Simulation {
         self.tx.send(ChildMsg::make(
             self.name.to_owned(),
             format!(
-                "H: {}, M: {}, deg_MSE: {}, deg_avg: {}, t: {}",
-                h, m, self.network.deg_mse, self.network.deg_avg, self.time
+                "H: {}, M: {}, deg_MSE: {}, deg_avg: {}, t: {}, n: {}, E: {}",
+                h, m, self.network.deg_mse, self.network.deg_avg, self.time, self.n, self.ham
             ),
-            false
+            false,
         ))?;
 
-        Ok(vec![h, m])
+        Ok(vec![self.time as f64, self.n as f64, h, m])
     }
 
     pub fn snapshot_phase(&mut self) -> Result<Vec<f64>, Box<dyn Error>> {
@@ -171,7 +171,7 @@ impl Simulation {
     }
 
     pub fn measure_equilibrium(&self, h_prev: f64, h_new: f64) -> f64 {
-        (h_new - h_prev).div(h_prev).abs()
+        (h_new - h_prev).abs()
     }
 
     pub fn is_at_equilibrium(&self, eq_measure: f64) -> bool {
@@ -237,7 +237,7 @@ impl Simulation {
     ) -> Result<(), Box<dyn Error>> {
         let mut data_writer = Writer::from_path(data_dist_path)?;
         // Write header
-        data_writer.write_record(&["H", "M"])?;
+        data_writer.write_record(&["t", "n", "H", "M"])?;
         data_writer.flush()?;
 
         self.calc_h();
@@ -249,12 +249,12 @@ impl Simulation {
         let precision = 1e9f64;
         self.time = 0;
 
-        let mut h = self.calc_h();
+        let mut h = self.ham;
 
         loop {
             self.mc_iter(rand);
 
-            let h_new = self.calc_h();
+            let h_new = self.ham;
 
             if self.is_at_equilibrium(self.measure_equilibrium(h, h_new)) {
                 break;
@@ -274,20 +274,22 @@ impl Simulation {
             saw_max |= is_max;
 
             // simulate
-            let mut h = self.calc_h();
+            let mut h = self.ham;
 
             loop {
                 self.mc_iter(rand);
                 self.time += 1;
                 self.n += 1;
 
-                let h_new = self.calc_h();
+                let h_new = self.ham;
 
                 if self.network.deg_avg != 4. {
                     self.network.plot_spins()?;
                 }
 
-                if self.is_at_equilibrium(self.measure_equilibrium(h, h_new)) || self.n > (1e8 as u128) {
+                if self.is_at_equilibrium(self.measure_equilibrium(h, h_new))
+                    || self.n > (1e8 as u128)
+                {
                     break;
                 }
 
@@ -329,19 +331,19 @@ impl Simulation {
 
         while self.mag() >= 0. {
             // simulate
-            let mut h_prev = self.ham;
+            let mut h_prev = self.ham.clone();
             self.n = 0;
             loop {
                 self.time += 1;
                 self.n += 1;
-                
+
                 self.mc_iter(rand);
 
                 let h_new = self.ham;
 
-                let m = self.measure_equilibrium(h_prev, h_new);
-
-                if self.is_at_equilibrium(m) || self.n >= (1e8 as u128) {
+                if self.is_at_equilibrium(self.measure_equilibrium(h_prev, h_new))
+                    || self.n >= (1e8 as u128)
+                {
                     break;
                 }
 

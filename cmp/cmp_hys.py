@@ -9,12 +9,13 @@ import plot_constants
 import json
 
 def plot(path, ax, colour, name, label):
+  print(path)
   df = pd.read_csv(path)
-  hs = list(df[df.columns[0]])
-  ms = list(df[df.columns[1]])
+  hs = list(df['H'])
+  ms = list(df['M'])
 
-  ax.set_xlabel(df.columns[0])
-  ax.set_ylabel(df.columns[1])
+  ax.set_xlabel('H')
+  ax.set_ylabel('M')
   ax.plot(hs, ms, color=colour, marker='.', label=f'''[{name}] {label}''')
 
 def main(paths):
