@@ -29,16 +29,14 @@ fn make_data_path_phase(
     step: f64,
     max: f64,
     seed: u64,
-    eq_steps: usize,
 ) -> String {
     format!(
-        "data/{}/phase/size={}_step={}_max={}_seed={}_eq={}",
+        "data/{}/phase/size={}_step={}_max={}_seed={}",
         network_type.to_string(),
         size,
         step,
         max,
-        seed,
-        eq_steps
+        seed
     )
 }
 
@@ -48,14 +46,16 @@ fn make_data_path_hys(
     step: f64,
     max: f64,
     temp: f64,
+    seed: u64,
 ) -> String {
     format!(
-        "data/{}/hys/size={}_step={}_max={}_temp={}",
+        "data/{}/hys/size={}_step={}_max={}_temp={}_seed={}",
         network_type.to_string(),
         size,
         step,
         max,
-        temp
+        temp,
+        seed
     )
 }
 
@@ -184,14 +184,8 @@ fn run_phase(
         tx,
     );
 
-    let data_dir_str = make_data_path_phase(
-        network_type,
-        args.size,
-        args.t_step,
-        args.t_max,
-        rand_seed,
-        eq_steps,
-    );
+    let data_dir_str =
+        make_data_path_phase(network_type, args.size, args.t_step, args.t_max, rand_seed);
     let data_path_str = prepare_data_path(&data_dir_str)?;
     let data_path = Path::new(&data_path_str);
 
@@ -247,7 +241,14 @@ fn run_hysteresis(
         tx,
     );
 
-    let data_dir_str = &make_data_path_hys(network_type, args.size, args.h_step, args.h_max, temp);
+    let data_dir_str = &make_data_path_hys(
+        network_type,
+        args.size,
+        args.h_step,
+        args.h_max,
+        temp,
+        rand_seed,
+    );
     let data_path_str = prepare_data_path(data_dir_str)?;
     let data_path = Path::new(&data_path_str);
 
