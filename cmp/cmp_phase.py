@@ -7,6 +7,7 @@ import sys
 import pathlib
 import json
 from scipy.optimize import curve_fit
+from scipy.stats.mstats import gmean
 import plot_constants
 from fit_phase import curve_fit, fit_plot, mt_fit, slice_data
 from functools import reduce
@@ -14,10 +15,23 @@ import re
 from dataclasses import dataclass, field
 
 @dataclass
+class DataPoint:
+  ts: list[float]
+  ms: list[float]
+  deg_avg: float
+  deg_mse: float
+  seed: int
+  energy: list[float]
+  time: list[float]
+  n: list[float] 
+  desc: dict
+
+@dataclass
 class Group:
   pattern: str
   label: str
   paths: list[str] = field(default_factory=list)
+  data: list[DataPoint] = field(default_factory=list)
   descs: list[dict] = field(default_factory=list)
 
 @dataclass
@@ -68,21 +82,18 @@ def ext_avg(xs, length=None):
   m, s, M = reduce(lambda u, x: (min(u[0], x), u[1] + x, max(u[2], x)), xs, (float('inf'), 0, float('-inf')))
   return m, s/(length or len(xs)), M
 
-def plot_avg_err(paths, ax, colour, name, label, bounds):
+def plot_avg_err(data, ax, colour, name, label, bounds):
   t_label, m_label = 'T', 'M'
 
   ts, mss = [], []
   ms = []
   errs = [[], []]
 
-  for path in paths:
-    df = pd.read_csv(path)
-
-    ts_new = df[t_label]
+  for dp in data:
+    ts_new = dp.ts
     ts = ts_new if len(ts_new) > len(ts) else ts
 
-    #if len(ms := ) > 1 or len(paths) == 1:
-    mss.append(list(df[m_label]))
+    mss.append(dp.ms)
 
   for i in range(0, max(len(ms) for ms in mss)):
     mms = [ms[i] for ms in mss if i < len(ms)]
@@ -131,51 +142,35 @@ def uzip(ps):
 
   return xs, ys
   
+def bin_up(xs: list[float], bins=10, mn=None, mx=None):
+  m, M = mn or min(xs), mx or max(xs)
 
-def plot_dist(group, ax, fig, colour, name, label, bounds, reg: dict[str, ParamRegister]):
-  @dataclass
-  class DataPoint:
-    ts: list[float]
-    ms: list[float]
-    deg_avg: float
-    deg_mse: float
-    seed: int
-    energy: list[float]
-    time: list[float]
-    n: list[float] 
-    desc: dict
+  db = (M - m)/bins
+  boundaries = [((db*i, db*(i+1)), []) for i in range(bins)]
 
-  ax_main, ax_dist, ax_energy, ax_n = fig.get_axes()
+  for x in xs:
+    for ((l, h), ys) in boundaries:
+      if l <= x < h:
+        ys.append(x)
+
+  return boundaries
+
+def plot_dist(group, ax, fig, colour, name, label, bounds, reg: dict[str, ParamRegister], data: list[DataPoint]):
+  ax_main, ax_dist, ax_energy, ax_relax = fig.get_axes()
   t_label, m_label = 'T', 'M'
-  data = []
-
-  for i, path in enumerate(group.paths):
-    df = pd.read_csv(path)
-    desc = group.descs[i]
-
-    data.append(DataPoint(
-      ts=df['T'], 
-      ms=df['M'], 
-      deg_avg=desc['deg_avg'], 
-      deg_mse=desc['deg_mse'], 
-      seed=desc['seed'], 
-      energy=df['E'], 
-      time=df['t'], 
-      n=df['n'],
-      desc=desc))
 
   ax_main.set_xlabel('$k_BT/J$')
   ax_main.set_ylabel('$M$')
 
-  for dp in data:
+  for i, dp in enumerate(data):
+    print(f'{chr(27)}[2J{i}/{len(data)}')
+
     # plot the data
-    # ax_.errorbar(ts, ms, marker='.', color=(*colour, 0.1), label=f'[{name}] {label}', yerr=errs)
     label = f'[{name}] seed={dp.seed} deg_avg={dp.deg_avg}'
-    ax_main.scatter(dp.ts, dp.ms, marker='.', color=(*colour, 0.1), label=label)
+    # ax_main.scatter(dp.ts, dp.ms, marker='.', color=(*colour, 0.1), label=label)
 
     try:
       # plot a fitted line
-      print(dp.seed)
       ts_fit, ms_fit, fit_params = fit_plot(dp.ts, dp.ms, bounds)
       m0, tc, beta = fit_params
 
@@ -188,17 +183,6 @@ def plot_dist(group, ax, fig, colour, name, label, bounds, reg: dict[str, ParamR
       #   label=f'[{name}] fit($M_0$={round(m0, 4)}, $T_C$={round(tc, 4)}, $\\beta$={round(beta, 4)})'
       # )
 
-      # Plot param dist
-      ax_dist.set_xlabel(r'Typ sieci')
-      ax_dist.set_ylabel(r'$T_C$')
-      ax_dist.scatter(
-        [dp.seed],
-        [tc],
-        color=(*colour, 1),
-        marker='s'
-      )
-      ax_dist.set_xticks(dp.desc['config']['seeds'])
-
       # Plot energy of time
       ax_energy.set_xlabel(r'$t$ [MC sweep]')
       ax_energy.set_ylabel(r'$\mathcal{H}$')
@@ -208,34 +192,31 @@ def plot_dist(group, ax, fig, colour, name, label, bounds, reg: dict[str, ParamR
         color=(*colour, 0.5),
         marker='.'
       )
-
-      ns, gs = uzip(log_dist(dp.n, dp.ts))
-
-      # Plot eq_steps log_10 distribution
-      ax_n.set_xlabel(r'log(eq_steps)')
-      ax_n.set_ylabel('liczba punktów')
-
-      ax_n.scatter(
-        ns,
-        [len(g) for g in gs],
-        color=(*colour, 0.5), label=label,
-        alpha=0.8
-      )
     except:
       print(f'Failed to fit a curve; seed={dp.seed}')
+
+  # Plot param dist
+  ax_dist.set_xlabel(r'seed')
+  ax_dist.set_ylabel(r'$T_C$')
+  ax_dist.boxplot(
+    [reg[group.label].tc],
+    positions=[name],
+    labels=[group.label]
+  )
 
 def main(paths: list[str]):
   plt.rcParams.update({'lines.markeredgewidth': 1})
   plt.rcParams['text.usetex'] = True
+  plt.rcParams['axes.labelsize'] = 16
 
   colours = plot_constants.plot_colours
   colour_keys = list(colours.keys())
 
-  fig, ((ax, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(16,14), dpi=300) # subplots(figsize=(10,7), dpi=300)
-  ax.grid(which='both')
-  ax2.grid(which='both')
-  ax3.grid(which='both')
-  ax4.grid(which='both')
+  fig, ((ax_main, ax_dist), (ax_energy, ax_relax)) = plt.subplots(2, 2, figsize=(16,14), dpi=300)
+  ax_main.grid(which='both')
+  ax_dist.grid(which='both')
+  ax_energy.grid(which='both')
+  ax_relax.grid(which='both')
 
   groups = [Group(pattern='/regular/', label='regular'), Group(pattern='/irregular/', label='irregular')]
 
@@ -245,6 +226,7 @@ def main(paths: list[str]):
   }
 
 
+  # make groups
   for path in paths:
     for group in groups:
       if re.search(group.pattern, path) != None:
@@ -256,29 +238,65 @@ def main(paths: list[str]):
         group.descs.append(desc)
         break
 
+  # make data points
+  for group in groups:
+    for i, path in enumerate(group.paths):
+      df = pd.read_csv(path)
+      desc = group.descs[i]
+
+      group.data.append(DataPoint(
+        ts=df['T'], 
+        ms=df['M'], 
+        deg_avg=desc['deg_avg'], 
+        deg_mse=desc['deg_mse'], 
+        seed=desc['seed'], 
+        energy=df['E'], 
+        time=df['t'], 
+        n=df['n'],
+        desc=desc))
+
+  # plot data
   for group, i in zip([g for g in groups if len(g.paths) > 0], range(1, len(paths) + 1)):
+    colour = colours[colour_keys[(i - 1) % len(colour_keys)]]
+    bounds = (1e-12, 5)
+
     plot_dist(
       group=group,
-      ax=ax,
+      ax=ax_main,
       fig=fig,
-      colour=colours[colour_keys[(i - 1) % len(colour_keys)]],
+      colour=colour,
       name=i,
-      label=group.pattern,
-      bounds=(1e-12, 5),
-      reg=param_reg
+      label=group.label,
+      bounds=bounds,
+      reg=param_reg,
+      data=group.data
     )
 
+    plot_avg_err(
+      data=group.data, 
+      ax=ax_main, 
+      colour=colour, 
+      name=i, 
+      label=group.label, 
+      bounds=bounds
+    )
 
-    # plot_avg_err(
-    #   paths=group.paths, 
-    #   ax=ax2, 
-    #   colour=colours[colour_keys[(i - 1) % len(colour_keys)]], 
-    #   name=i, 
-    #   label=group.pattern, 
-    #   bounds=(1e-12, 5)
-    # )
+    ns = []
+    for dp in group.data:
+      ns.extend(np.log10(dp.n))
 
-  fig.suptitle(f"""(regular: {param_reg['regular']}; irregular: {param_reg['irregular']})""")
+    xs, ys = uzip(bin_up(ns, mn=0, mx=4))
+
+    ax_relax.set_xlabel(r'log(eq_steps)')
+    ax_relax.set_ylabel('liczba punktów')
+    ax_relax.scatter(
+      [x[0] for x in xs],
+      [len(y) for y in ys],
+      color=(*colour, 0.8)
+    )
+
+  fig.suptitle(f"""regular: {param_reg['regular']}\n irregular: {param_reg['irregular']}""", fontsize=20)
+  ax_main.legend()
   fig.tight_layout()
   plt.savefig('plot.png', dpi=300)
 

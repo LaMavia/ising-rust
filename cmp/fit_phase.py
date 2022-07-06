@@ -25,6 +25,6 @@ def fit_plot(xs, ys, bounds, f=mt_fit):
   
   popt, _ = curve_fit(f, xn, yn, bounds=bounds, maxfev=1e12) 
   # m0, tc, b = popt
-  print(popt)
+  # print(popt)
   # print(f'M_0={m0}, T_C={tc}, β={b}')
   return xn, [f(t, *popt) for t in xn], popt
