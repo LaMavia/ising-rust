@@ -1,4 +1,4 @@
-use std::{collections::HashMap, error::Error, hash::Hash, io, iter::Map, str::FromStr};
+use std::{collections::HashMap, error::Error, io, str::FromStr};
 
 use crate::matrix::{index_of_pos, Matrix};
 use plotters::prelude::*;
@@ -110,13 +110,16 @@ impl Network {
             ]
             .into_iter()
             {
-                map.insert(index_of_pos(
-                    width,
-                    (
-                        pos_x.rem_euclid(width as i64) as usize,
-                        pos_y.rem_euclid(width as i64) as usize,
+                map.insert(
+                    index_of_pos(
+                        width,
+                        (
+                            pos_x.rem_euclid(width as i64) as usize,
+                            pos_y.rem_euclid(width as i64) as usize,
+                        ),
                     ),
-                ), false);
+                    false,
+                );
             }
 
             map

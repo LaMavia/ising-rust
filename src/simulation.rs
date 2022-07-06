@@ -1,4 +1,4 @@
-use std::{error::Error, ops::Div, path::Path, sync::mpsc::Sender, thread, time::Duration};
+use std::{error::Error, path::Path, sync::mpsc::Sender, thread, time::Duration};
 
 use csv::Writer;
 use rand::{seq::SliceRandom, Rng};
@@ -136,7 +136,7 @@ impl Simulation {
             false,
         ))?;
 
-        Ok(vec![self.time as f64, self.n as f64, h, m])
+        Ok(vec![self.time as f64, self.n as f64, h, m, self.ham])
     }
 
     pub fn snapshot_phase(&mut self) -> Result<Vec<f64>, Box<dyn Error>> {
@@ -157,76 +157,12 @@ impl Simulation {
         Ok(vec![self.time as f64, self.n as f64, temp, m, self.ham])
     }
 
-    pub fn snapshot_relaxation(&mut self, h_prev: f64) -> Result<Vec<f64>, Box<dyn Error>> {
-        let temp = self.config.temp;
-        let m = self.mag();
-        let eta = self.measure_equilibrium(h_prev, self.ham);
-
-        eprintln!(
-            "T: {}, M: {}, deg_MSE: {}, deg_avg: {}, η: {}",
-            temp, m, self.network.deg_mse, self.network.deg_avg, eta
-        );
-
-        Ok(vec![self.config.temp, self.time as f64, eta])
-    }
-
     pub fn measure_equilibrium(&self, h_prev: f64, h_new: f64) -> f64 {
         (h_new - h_prev).abs()
     }
 
     pub fn is_at_equilibrium(&self, eq_measure: f64) -> bool {
         eq_measure.abs() < self.config.eq_threshold
-    }
-
-    fn regress(&mut self, rand: &mut ChaCha20Rng) {
-        for i in 0..self.network.size.pow(2) {
-            self.network.spins[i] = if rand.gen_bool(0.5) { 1 } else { -1 };
-        }
-    }
-
-    pub fn simulate_relaxation(
-        &mut self,
-        data_dist_path: &Path,
-        config: PhaseConfig,
-        rand: &mut ChaCha20Rng,
-    ) -> Result<(), Box<dyn Error>> {
-        let mut data_writer = Writer::from_path(data_dist_path)?;
-        // Write header
-        data_writer.write_record(&["T", "t", "η"])?;
-        data_writer.flush()?;
-
-        for x in 0..self.network.size {
-            for y in 0..self.network.size {
-                self.network.spins[(x, y)] = 1;
-            }
-        }
-
-        self.calc_h();
-        self.calc_magnetisation();
-
-        while self.config.temp <= config.t_max {
-            self.calc_h();
-            self.calc_magnetisation();
-
-            self.time = 0;
-
-            for _ in 0..self.config.equilibrium_steps {
-                self.time += 1;
-
-                let h = self.ham;
-
-                self.mc_iter(rand);
-
-                data_writer.serialize(self.snapshot_relaxation(h)?)?;
-            }
-
-            self.config.temp += config.t_step;
-            // self.regress(rand);
-        }
-
-        data_writer.flush()?;
-
-        Ok(())
     }
 
     pub fn simulate_hysteresis(
@@ -237,7 +173,7 @@ impl Simulation {
     ) -> Result<(), Box<dyn Error>> {
         let mut data_writer = Writer::from_path(data_dist_path)?;
         // Write header
-        data_writer.write_record(&["t", "n", "H", "M"])?;
+        data_writer.write_record(&["t", "n", "H", "M", "E"])?;
         data_writer.flush()?;
 
         self.calc_h();
@@ -249,18 +185,14 @@ impl Simulation {
         let precision = 1e9f64;
         self.time = 0;
 
-        let mut h = self.ham;
-
         loop {
+            let h_prev = self.ham;
             self.mc_iter(rand);
-
             let h_new = self.ham;
 
-            if self.is_at_equilibrium(self.measure_equilibrium(h, h_new)) {
+            if self.is_at_equilibrium(self.measure_equilibrium(h_prev, h_new)) {
                 break;
             }
-
-            h = h_new;
         }
 
         while !(self.config.h >= config.h_max && saw_max) {
@@ -274,26 +206,21 @@ impl Simulation {
             saw_max |= is_max;
 
             // simulate
-            let mut h = self.ham;
-
             loop {
+                let h_prev = self.ham;
+
                 self.mc_iter(rand);
+
                 self.time += 1;
                 self.n += 1;
 
                 let h_new = self.ham;
 
-                if self.network.deg_avg != 4. {
-                    self.network.plot_spins()?;
-                }
-
-                if self.is_at_equilibrium(self.measure_equilibrium(h, h_new))
+                if self.is_at_equilibrium(self.measure_equilibrium(h_prev, h_new))
                     || self.n > (1e8 as u128)
                 {
                     break;
                 }
-
-                h = h_new;
             }
 
             // save
