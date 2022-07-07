@@ -1,0 +1,8 @@
+r, seed=1, T=0.5]: data/regular/hys/size=100_step=0.001_max=2.5_temp=0.5_seed=1/desc.json
+[regular, seed=1, T=1]: data/regular/hys/size=100_step=0.001_max=2.5_temp=1_seed=1/desc.json
+[regular, seed=1, T=1.5]: data/regular/hys/size=100_step=0.001_max=2.5_temp=1.5_seed=1/desc.json
+[regular, seed=1, T=2]: data/regular/hys/size=100_step=0.001_max=2.5_temp=2_seed=1/desc.json
+[irregular, seed=1, T=0.5]: data/irregular/hys/size=100_step=0.001_max=2.5_temp=0.5_seed=1/desc.json
+[irregular, seed=1, T=1]: data/irregular/hys/size=100_step=0.001_max=2.5_temp=1_seed=1/desc.json
+[irregular, seed=1, T=1.5]: H: 0.434999266, M: 0.9724, deg_MSE: 1.9672, deg_avg: 4.0376, t: 4006332, n: 504, E: -21761.672136882487
+[irregular, seed=1, T=2]: H: 0.399999998, M: 0.9272, deg_MSE: 1.9672, deg_avg: 4.0376, t: 3983183, n: 4129, E: -19249.477982183475
