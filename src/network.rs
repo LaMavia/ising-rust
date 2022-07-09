@@ -46,6 +46,7 @@ pub struct Network {
     pub lattice: Matrix<Vec<usize>>,
     pub deg_mse: f64,
     pub deg_avg: f64,
+    pub size2: f64,
 }
 
 impl Network {
@@ -182,6 +183,7 @@ impl Network {
             },
             deg_mse: 0f64,
             deg_avg: 0f64,
+            size2: (size * size) as f64,
         };
 
         m.deg_mse = m.get_deg_mse(4f64);
@@ -218,14 +220,15 @@ impl Network {
         self.lattice.iter().fold(0f64, |u, x| u + x.len() as f64) / (self.size.pow(2) as f64)
     }
 
-    pub fn plot_spins(&self) -> Result<(), Box<dyn Error>> {
-        let root = BitMapBackend::new("out.png", (1000, 1000));
+    pub fn plot_spins(&self, path: &String, title: &String) -> Result<(), Box<dyn Error>> {
+        let root = BitMapBackend::new(path, (1000, 1000));
         let root_area = root.into_drawing_area();
 
         root_area.fill(&WHITE)?;
 
-        let mut ctx =
-            ChartBuilder::on(&root_area).build_cartesian_2d(0..self.size, 0..self.size)?;
+        let mut ctx = ChartBuilder::on(&root_area)
+            .caption(title, ("Arial", 25))
+            .build_cartesian_2d(0..self.size, 0..self.size)?;
 
         ctx.configure_mesh()
             .disable_x_mesh()

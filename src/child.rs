@@ -5,7 +5,7 @@ pub struct Child {
     pub name: String,
     pub msg: String,
     pub thread_handle: Box<JoinHandle<()>>,
-    pub done: bool
+    pub done: bool,
 }
 
 impl Child {
@@ -14,7 +14,7 @@ impl Child {
             name,
             msg: "<starting>".to_string(),
             thread_handle: Box::new(spawn(f)),
-            done: false
+            done: false,
         }
     }
 
@@ -38,3 +38,18 @@ impl ChildMsg {
         ChildMsg { name, msg, done }
     }
 }
+
+#[macro_export]
+macro_rules! send {
+    ($tx:expr, $name:expr, $ex:expr) => {
+        $tx.send(ChildMsg::make($name.to_owned(), $ex, false))
+            .unwrap();
+    };
+
+    (final $tx:expr, $name:expr, $ex:expr) => {
+        $tx.send(ChildMsg::make($name.to_owned(), $ex, true))
+            .unwrap();
+    };
+}
+
+pub(crate) use send;

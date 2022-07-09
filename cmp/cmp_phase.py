@@ -13,7 +13,7 @@ from fit_phase import curve_fit, fit_plot, mt_fit, slice_data
 from functools import reduce
 import re
 from dataclasses import dataclass, field
-from typing import TypeVar, Generic, Union
+from typing import TypeVar, Generic, Union, Any
 
 @dataclass
 class DataPoint:
@@ -134,7 +134,8 @@ def process_register(group: Group, reg: dict[str, ParamRegister], bounds: tuple[
 """
 Plot the main phase transition diagram
 """
-def plot_main(data: list[DataPoint], ax: plt.Axes, colour: list[float], name: str, bounds: tuple[float]):
+def plot_main(group: Group, ax: plt.Axes, colour: list[float], name: str, bounds: tuple[float]):
+  data = group.data
   ts, mss = [], []
   min_curve, max_curve = [], []
 
@@ -173,15 +174,24 @@ def plot_main(data: list[DataPoint], ax: plt.Axes, colour: list[float], name: st
 
   ax.plot(ts_fit, ms_fit, linestyle='dashed',
     color=(*[max(c - 0.2, 0) for c in colour], 1),
-    label=f'[{name}] fit($M_0$={round(m0, 4)}, $T_C$={round(tc, 4)}, $\\beta$={round(beta, 4)})'
+    label=f'[{group.label}] fit($M_0$={round(m0, 4)}, $T_C$={round(tc, 4)}, $\\beta$={round(beta, 4)})'
+  )
+
+  ax.plot(
+    [tc, tc], 
+    [1, 0], 
+    color=(*[max(c - 0.4, 0) for c in colour], 1), 
+    linestyle='--',
   )
 
 """
 Plot energy of time
 """
-def plot_energy(ax: plt.Axes, data: list[DataPoint], colour: list[float]):
+def plot_energy(ax: plt.Axes, group: Group, colour: list[float]):
   def flatten(xss):
     return [x for xs in xss for x in xs]
+
+  data: list[DataPoint] = group.data
 
   ax.set_xlabel(r'$t$ [MC sweep]')
   ax.set_ylabel(r'$\mathcal{H}$')
@@ -223,8 +233,26 @@ def plot_energy(ax: plt.Axes, data: list[DataPoint], colour: list[float]):
     ts_between,
     es_between,
     color=(*colour, 0.5),
-    marker='o'
+    marker='o',
+    label=group.label
   )
+
+def tagged_box(ax: plt.Axes, xs: list[float], positions: list[Any], labels: list[str]):
+  params = ax.boxplot(
+    xs,
+    positions=positions,
+    labels=labels
+  )
+
+  for line in params['medians']:
+    (x_l, y),(x_r, _) = line.get_xydata()
+    if not np.isnan(y): 
+      x_line_center = x_l + (x_r - x_l)/2
+      y_line_center = y  
+      ax.text(x_line_center, y_line_center,
+              '%.3f' % y, 
+              verticalalignment='center', 
+              fontsize=16, backgroundcolor="white")
 
 """
 Plot param distribution
@@ -232,17 +260,18 @@ Plot param distribution
 def plot_dist(group: Group, ax: plt.Axes, name: str, reg: dict[str, ParamRegister], field: str, ylabel: str):
   ax.set_xlabel(r'rodzaj sieci')
   ax.set_ylabel(ylabel)
-  ax.boxplot(
-    [reg[group.label][field]],
-    positions=[name],
-    labels=[group.label]
-  )
+  tagged_box(
+    ax=ax, 
+    xs=[reg[group.label][field]], 
+    positions=[name], 
+    labels=[group.label])
 
 def plot_deg_dist(group: Group, ax: plt.Axes, name: str):
   ax.set_xlabel(r'rodzaj sieci')
   ax.set_ylabel(r'$\langle k \rangle$')
-  ax.boxplot(
-    [dp.deg_avg for dp in group.data],
+  tagged_box(
+    ax=ax,
+    xs=[dp.deg_avg for dp in group.data],
     positions=[name],
     labels=[group.label]
   )
@@ -255,14 +284,15 @@ def plot_relax(group: Group, ax: plt.Axes, colour: list[float]):
   for dp in group.data:
     ns.extend(np.log10(dp.n))
 
-  xs, ys = uzip(bin_up(ns, mn=0, mx=4))
+  xs, ys = uzip(bin_up(ns, mn=0, mx=4, bins=20))
 
   ax.set_xlabel(r'log(eq_steps)')
   ax.set_ylabel('liczba punktów')
   ax.scatter(
     [x[0] for x in xs],
     [len(y) for y in ys],
-    color=(*colour, 0.8)
+    color=(*colour, 0.8),
+    label=group.label
   )
 
 def main(paths: list[str]):
@@ -283,6 +313,7 @@ def main(paths: list[str]):
 
   for ax in axs:
     ax.grid(which='both')
+    ax.tick_params(which='both', labelsize=14)
 
   groups = [Group(pattern='/regular/', label='regular'), Group(pattern='/irregular/', label='irregular')]
 
@@ -348,7 +379,7 @@ def main(paths: list[str]):
     )
 
     plot_main(
-      data=group.data, 
+      group=group, 
       ax=ax_main, 
       colour=colour, 
       name=i, 
@@ -357,7 +388,7 @@ def main(paths: list[str]):
 
     plot_energy(
       ax=ax_energy, 
-      data=group.data, 
+      group=group, 
       colour=colour
     )
 
@@ -368,14 +399,17 @@ def main(paths: list[str]):
     )
 
   title = f"""size: {
-      groups[0].descs[0]['config']['size']
-    }\nregular: {
+      groups[0].descs[0]['config']['size'] 
+    }, \#samples/type: {
+      len(groups[0].data)
+    } \nregular: {
       param_reg['regular']
     }\n irregular: {
       param_reg['irregular']
     }"""
 
-  ax_main.legend(fontsize=18)
+  for ax in axs:
+    ax.legend(fontsize=18)
 
   for fig in figs:
     fig.suptitle(title, fontsize=20)

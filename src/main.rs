@@ -61,15 +61,15 @@ fn make_data_path_hys(
 
 fn prepare_data_path(data_dir: &String) -> Result<String, Box<dyn Error>> {
     let data_path_str = format!("{}/data.csv", data_dir);
+
     fs::create_dir_all(&data_dir)?;
+    fs::create_dir_all(&format!("{}/frames/", data_dir))?;
+
     Ok(data_path_str)
 }
 
 fn eq_threshold_of_type(network_type: NetworkType) -> f64 {
-    match network_type {
-        NetworkType::Regular => f64::MIN_POSITIVE,
-        NetworkType::Irregular => f64::MIN_POSITIVE,
-    }
+    1e-6
 }
 
 fn save<D: Descriptor>(
@@ -82,81 +82,17 @@ fn save<D: Descriptor>(
 
     desc.save(&desc_path_str)?;
 
-    tx.send(ChildMsg {
-        name: name.to_owned(),
-        msg: desc_path_str.to_owned(),
-        done: true,
-    })?;
+    send!(
+        final tx,
+        name,
+        desc_path_str.to_owned()
+    );
 
     thread::sleep(Duration::from_millis(5));
 
     Ok(desc_path_str)
 }
 
-/* fn run_relax(
-    rand_seed: u64,
-    args: &ArgsPhase,
-    network_type: NetworkType,
-    eq_steps: usize,
-) -> Result<String, Box<dyn Error>> {
-    let mut rand = rand_chacha::ChaCha20Rng::seed_from_u64(rand_seed);
-
-    let mut s = Simulation::new(
-        args.size,
-        SimulationConfig {
-            temp: args.t_min,
-            h: 0f64,
-            j: 1f64,
-            kb: 1f64,
-            equilibrium_steps: eq_steps,
-            network_type: network_type,
-            eq_threshold: eq_threshold_of_type(network_type),
-        },
-        &mut rand,
-    );
-
-    let data_dir_str = make_data_path_phase(
-        network_type,
-        args.size,
-        args.t_step,
-        args.t_max,
-        rand_seed,
-        eq_steps,
-    );
-    let data_path_str = prepare_data_path(&data_dir_str)?;
-    let data_path = Path::new(&data_path_str);
-
-    match s.simulate_relaxation(
-        data_path,
-        simulation::PhaseConfig {
-            t_min: args.t_min,
-            t_max: args.t_max,
-            t_step: args.t_step,
-            s0: 1.,
-        },
-        &mut rand,
-    ) {
-        Ok(_) => {
-            let desc_path_str = format!("{data_dir_str}/desc.json");
-
-            let desc = PhaseDescriptor {
-                config: args,
-                lattice: s.network.lattice,
-                seed: rand_seed,
-                deg_avg: s.network.deg_avg,
-                deg_mse: s.network.deg_mse,
-                data_path: data_path,
-                path: Path::new(&desc_path_str),
-            };
-
-            desc.save()?;
-
-            Ok(desc_path_str)
-        }
-        Err(e) => Err(e),
-    }
-}
- */
 fn run_phase(
     rand_seed: u64,
     args: &ArgsPhase,
@@ -167,6 +103,11 @@ fn run_phase(
     name: String,
 ) -> Result<String, Box<dyn Error>> {
     let mut rand = rand_chacha::ChaCha20Rng::seed_from_u64(rand_seed);
+
+    let data_dir_str =
+        make_data_path_phase(network_type, args.size, args.t_step, args.t_max, rand_seed);
+    let data_path_str = prepare_data_path(&data_dir_str)?;
+    let data_path = Path::new(&data_path_str);
 
     let mut s = Simulation::new(
         args.size,
@@ -182,12 +123,8 @@ fn run_phase(
         &mut rand,
         name,
         tx,
+        data_dir_str.to_owned()
     );
-
-    let data_dir_str =
-        make_data_path_phase(network_type, args.size, args.t_step, args.t_max, rand_seed);
-    let data_path_str = prepare_data_path(&data_dir_str)?;
-    let data_path = Path::new(&data_path_str);
 
     match s.simulate_phase(
         data_path,
@@ -225,6 +162,17 @@ fn run_hysteresis(
 ) -> Result<String, Box<dyn Error>> {
     let mut rand = rand_chacha::ChaCha20Rng::seed_from_u64(rand_seed);
 
+    let data_dir_str = &make_data_path_hys(
+        network_type,
+        args.size,
+        args.h_step,
+        args.h_max,
+        temp,
+        rand_seed,
+    );
+    let data_path_str = prepare_data_path(data_dir_str)?;
+    let data_path = Path::new(&data_path_str);
+
     let mut s = Simulation::new(
         args.size,
         SimulationConfig {
@@ -239,18 +187,8 @@ fn run_hysteresis(
         &mut rand,
         name,
         tx,
+        data_dir_str.to_owned()
     );
-
-    let data_dir_str = &make_data_path_hys(
-        network_type,
-        args.size,
-        args.h_step,
-        args.h_max,
-        temp,
-        rand_seed,
-    );
-    let data_path_str = prepare_data_path(data_dir_str)?;
-    let data_path = Path::new(&data_path_str);
 
     match s.simulate_hysteresis(
         &data_path,

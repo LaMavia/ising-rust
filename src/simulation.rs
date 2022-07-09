@@ -1,11 +1,11 @@
-use std::{error::Error, path::Path, sync::mpsc::Sender, thread, time::Duration};
+use std::{error::Error, ops::Div, path::Path, sync::mpsc::Sender, thread, time::Duration};
 
 use csv::Writer;
 use rand::{seq::SliceRandom, Rng};
 use rand_chacha::ChaCha20Rng;
 
 use crate::{
-    child::ChildMsg,
+    child::{send, ChildMsg},
     matrix::pos_of_index,
     network::{Network, NetworkType},
 };
@@ -47,6 +47,25 @@ pub struct Simulation {
     pub ham: f64,
     pub name: String,
     pub tx: Sender<ChildMsg>,
+    pub dist: String,
+    pub free_count: i64,
+}
+
+#[derive(Debug)]
+pub struct StateSnapshot {
+    pub spin_sum: i64,
+    pub ham: f64,
+    pub mag: f64,
+}
+
+impl StateSnapshot {
+    pub fn of_simulation<'a>(simulation: &'a Simulation) -> Self {
+        StateSnapshot {
+            spin_sum: simulation.spin_sum,
+            ham: simulation.ham,
+            mag: simulation.mag(),
+        }
+    }
 }
 
 impl Simulation {
@@ -56,9 +75,11 @@ impl Simulation {
         rand: &mut ChaCha20Rng,
         name: String,
         tx: Sender<ChildMsg>,
+        dist: String,
     ) -> Self {
-        Simulation {
-            network: Network::new(size, &config.network_type, rand),
+        let network = Network::new(size, &config.network_type, rand);
+        let mut s = Simulation {
+            network,
             config,
             time: 0,
             spin_sum: 0,
@@ -66,40 +87,57 @@ impl Simulation {
             name,
             tx,
             n: 0,
-        }
+            dist,
+            free_count: 0,
+        };
+
+        s.free_count = s
+            .network
+            .lattice
+            .enumerator()
+            .filter(|(_, ns)| ns.len() == 0)
+            .count() as i64;
+
+        s
     }
 
-    pub fn mag(&mut self) -> f64 {
+    pub fn mag(&self) -> f64 {
         (self.spin_sum as f64) / (self.network.size.pow(2) as f64)
     }
 
     pub fn calc_h(&mut self) -> f64 {
+        // eprintln!("start:");
         let j: f64 = self
             .network
             .spins
             .enumerator()
-            .map(|(p, s)| {
+            .map(|(p, &s)| {
+                // eprintln!("{:?}", p);
                 let neighbour_spin_sum = self.network.get_neighbours(p).iter().sum::<i8>() as f64;
 
-                (*s as f64) * neighbour_spin_sum
+                (s as f64) * neighbour_spin_sum
             })
             .sum();
+        // eprintln!("end");
 
         let h = self.network.spins.iter().sum::<i8>() as f64;
 
-        self.ham = -(self.config.h * h + self.config.j * j);
+        self.ham = -(self.config.h * h + 0.5 * self.config.j * j);
         self.ham
     }
 
     pub fn calc_delta_h(&self, p: (usize, usize)) -> f64 {
-        let neighbour_spin_sum = self.network.get_neighbours(p).iter().sum::<i8>() as f64;
         let sk = self.network.get_spin(p) as f64;
 
-        sk * 2f64 * (self.config.j * neighbour_spin_sum + self.config.h)
+        sk * 2f64
+            * (self.config.j * (self.network.get_neighbours(p).iter().sum::<i8>() as f64)
+                + self.config.h)
+
+        // sk * 2f64 * (self.config.j * neighbour_spin_sum + self.config.h)
     }
 
     pub fn calc_magnetisation(&mut self) -> f64 {
-        self.spin_sum = self.network.spins.iter().fold(0, |u, s| u + (*s as i64));
+        self.spin_sum = self.network.spins.iter().fold(0, |u, &s| u + (s as i64));
 
         self.mag()
     }
@@ -107,8 +145,9 @@ impl Simulation {
     fn evolve_spin(&mut self, p: (usize, usize), rng: &mut ChaCha20Rng) {
         let delta_h = self.calc_delta_h(p);
         let distortion = rng.gen::<f64>();
+        let v = (-delta_h / (self.config.kb * self.config.temp)).exp();
 
-        if delta_h <= 0f64 || distortion < (-delta_h / (self.config.kb * self.config.temp)).exp() {
+        if delta_h <= 0f64 || distortion < v {
             self.spin_sum += 2 * self.network.flip_spin(p) as i64;
             self.ham += delta_h;
         }
@@ -126,15 +165,16 @@ impl Simulation {
     pub fn snapshot_hysteresis(&mut self) -> Result<Vec<f64>, Box<dyn Error>> {
         let h = self.config.h;
         let m = self.mag();
+        self.ham = self.calc_h();
 
-        self.tx.send(ChildMsg::make(
-            self.name.to_owned(),
+        send!(
+            self.tx,
+            self.name,
             format!(
                 "H: {}, M: {}, deg_MSE: {}, deg_avg: {}, t: {}, n: {}, E: {}",
                 h, m, self.network.deg_mse, self.network.deg_avg, self.time, self.n, self.ham
-            ),
-            false,
-        ))?;
+            )
+        );
 
         Ok(vec![self.time as f64, self.n as f64, h, m, self.ham])
     }
@@ -143,26 +183,37 @@ impl Simulation {
         let temp = self.config.temp;
         let m = self.mag();
 
-        self.tx.send(ChildMsg::make(
-            self.name.to_owned(),
+        send!(
+            self.tx,
+            self.name,
             format!(
                 "T: {}, M: {}, deg_MSE: {}, deg_avg: {}, t: {}, n: {}",
                 temp, m, self.network.deg_mse, self.network.deg_avg, self.time, self.n
-            ),
-            false,
-        ))?;
+            )
+        );
 
         thread::sleep(Duration::from_nanos(1));
 
         Ok(vec![self.time as f64, self.n as f64, temp, m, self.ham])
     }
 
-    pub fn measure_equilibrium(&self, h_prev: f64, h_new: f64) -> f64 {
-        (h_new - h_prev).abs()
-    }
+    pub fn is_at_equilibrium(&self, prev_state: &StateSnapshot) -> bool {
+        let d_count = (prev_state.spin_sum - self.spin_sum).abs();
+        let d_ham = (prev_state.ham - self.ham).abs();
 
-    pub fn is_at_equilibrium(&self, eq_measure: f64) -> bool {
-        eq_measure.abs() < self.config.eq_threshold
+        let ham_relax = d_ham < f64::MIN_POSITIVE;
+        let mag_relax = d_count == 2 * self.free_count
+            || (prev_state.mag - self.mag()).abs() <= f64::MIN_POSITIVE;
+
+        if false && self.network.deg_mse != 0. {
+            send!(
+                self.tx,
+                self.name,
+                format!("ΔΣs: {}, δΣs: {}", d_count, self.free_count)
+            );
+        }
+
+        mag_relax && ham_relax
     }
 
     pub fn simulate_hysteresis(
@@ -186,11 +237,11 @@ impl Simulation {
         self.time = 0;
 
         loop {
-            let h_prev = self.ham;
-            self.mc_iter(rand);
-            let h_new = self.ham;
+            let prev_state = StateSnapshot::of_simulation(&self);
 
-            if self.is_at_equilibrium(self.measure_equilibrium(h_prev, h_new)) {
+            self.mc_iter(rand);
+
+            if self.is_at_equilibrium(&prev_state) {
                 break;
             }
         }
@@ -207,24 +258,27 @@ impl Simulation {
 
             // simulate
             loop {
-                let h_prev = self.ham;
+                let prev_state = StateSnapshot::of_simulation(&self);
 
                 self.mc_iter(rand);
 
                 self.time += 1;
                 self.n += 1;
 
-                let h_new = self.ham;
-
-                if self.is_at_equilibrium(self.measure_equilibrium(h_prev, h_new))
-                    || self.n > (1e8 as u128)
-                {
+                if self.is_at_equilibrium(&prev_state) || self.n > (1e8 as u128) {
                     break;
                 }
             }
 
             // save
             data_writer.serialize(self.snapshot_hysteresis()?)?;
+            // plot frame
+            let out_path = format!("{}/frames/{}.png", self.dist, self.time);
+
+            self.network.plot_spins(
+                &out_path,
+                &format!("H: {}, t: {}", self.config.h, self.time),
+            )?;
 
             // step
             self.config.h =
@@ -258,27 +312,46 @@ impl Simulation {
 
         while self.mag() >= 0. {
             // simulate
-            let mut h_prev = self.ham.clone();
             self.n = 0;
             loop {
                 self.time += 1;
                 self.n += 1;
 
+                let prev_state = StateSnapshot::of_simulation(&self);
+
                 self.mc_iter(rand);
-
-                let h_new = self.ham;
-
-                if self.is_at_equilibrium(self.measure_equilibrium(h_prev, h_new))
-                    || self.n >= (1e8 as u128)
-                {
-                    break;
+                if self.network.deg_mse != 0. && self.time.rem_euclid(201) == 0 {
+                    self.network.plot_spins(
+                        &format!(
+                            "view_size={}_avg={}.png",
+                            self.network.size, self.network.deg_avg
+                        ),
+                        &format!(
+                            "T: {}, t: {}, ΔH: {}, ΔM: {}, δM: {}",
+                            self.config.temp,
+                            self.time,
+                            (prev_state.ham - self.ham).abs(),
+                            (prev_state.mag - self.mag()).abs(),
+                            (self.free_count as f64 / self.network.size2)
+                        ),
+                    )?;
                 }
 
-                h_prev = h_new;
+                if self.is_at_equilibrium(&prev_state) {
+                    break;
+                }
             }
 
             // save
             data_writer.serialize(self.snapshot_phase()?)?;
+
+            // plot frame
+            let out_path = format!("{}/frames/{}.png", self.dist, self.time);
+
+            self.network.plot_spins(
+                &out_path,
+                &format!("T: {}, t: {}", self.config.temp, self.time),
+            )?;
 
             // step
             self.config.temp += config.t_step;

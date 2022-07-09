@@ -11,8 +11,10 @@ plot_args=$(cargo run --release -- "$@")
 if [[ -n "$plot_args" ]]; then 
   printf "args: %s\n" "$plot_args"
   name=$(echo "$plot_args" | head -n1 | cut -d ' ' -f1)
+  args_f="$name.args"
+  echo "$plot_args" > "$args_f"
 
-  echo "$plot_args" > "$name.args"
+  ./vid.sh "$args_f" 3
 
   ./cmp/main.py $plot_args; 
 fi
