@@ -1,4 +1,4 @@
-use std::{error::Error, ops::Div, path::Path, sync::mpsc::Sender, thread, time::Duration};
+use std::{error::Error, path::Path, sync::mpsc::Sender};
 
 use csv::Writer;
 use rand::{seq::SliceRandom, Rng};
@@ -6,9 +6,17 @@ use rand_chacha::ChaCha20Rng;
 
 use crate::{
     child::{send, ChildMsg},
+    frame,
+    mathy::{round_to, SIMULATION_PRECISION},
     matrix::pos_of_index,
     network::{Network, NetworkType},
 };
+
+macro_rules! round {
+    ($x:expr) => {
+        round_to($x, SIMULATION_PRECISION)
+    };
+}
 
 #[derive(Debug)]
 pub struct SimulationConfig {
@@ -44,7 +52,10 @@ pub struct Simulation {
     pub time: u128,
     pub n: u128,
     pub spin_sum: i64,
-    pub ham: f64,
+    pub ham_internal: f64,
+    pub ham_external: f64,
+    pub ham_agr_internal: f64,
+    pub ham_agr_external: f64,
     pub name: String,
     pub tx: Sender<ChildMsg>,
     pub dist: String,
@@ -54,7 +65,10 @@ pub struct Simulation {
 #[derive(Debug)]
 pub struct StateSnapshot {
     pub spin_sum: i64,
-    pub ham: f64,
+    pub ham_internal: f64,
+    pub ham_external: f64,
+    pub ham_agr_internal: f64,
+    pub ham_agr_external: f64,
     pub mag: f64,
 }
 
@@ -62,9 +76,16 @@ impl StateSnapshot {
     pub fn of_simulation<'a>(simulation: &'a Simulation) -> Self {
         StateSnapshot {
             spin_sum: simulation.spin_sum,
-            ham: simulation.ham,
+            ham_internal: simulation.ham_internal,
+            ham_external: simulation.ham_external,
+            ham_agr_internal: simulation.ham_agr_internal,
+            ham_agr_external: simulation.ham_agr_external,
             mag: simulation.mag(),
         }
+    }
+
+    pub fn ham(&self) -> f64 {
+        round_to(self.ham_internal + self.ham_external, SIMULATION_PRECISION)
     }
 }
 
@@ -83,7 +104,10 @@ impl Simulation {
             config,
             time: 0,
             spin_sum: 0,
-            ham: 0.,
+            ham_internal: 0.,
+            ham_external: 0.,
+            ham_agr_internal: 0.,
+            ham_agr_external: 0.,
             name,
             tx,
             n: 0,
@@ -102,38 +126,85 @@ impl Simulation {
     }
 
     pub fn mag(&self) -> f64 {
-        (self.spin_sum as f64) / (self.network.size.pow(2) as f64)
+        round_to(
+            (self.spin_sum as f64) / (self.network.size.pow(2) as f64),
+            SIMULATION_PRECISION,
+        )
     }
 
-    pub fn calc_h(&mut self) -> f64 {
-        // eprintln!("start:");
-        let j: f64 = self
-            .network
-            .spins
-            .enumerator()
-            .map(|(p, &s)| {
-                // eprintln!("{:?}", p);
-                let neighbour_spin_sum = self.network.get_neighbours(p).iter().sum::<i8>() as f64;
-
-                (s as f64) * neighbour_spin_sum
-            })
-            .sum();
-        // eprintln!("end");
-
-        let h = self.network.spins.iter().sum::<i8>() as f64;
-
-        self.ham = -(self.config.h * h + 0.5 * self.config.j * j);
-        self.ham
+    pub fn ham(&self) -> f64 {
+        round_to(self.ham_internal + self.ham_external, SIMULATION_PRECISION)
     }
 
-    pub fn calc_delta_h(&self, p: (usize, usize)) -> f64 {
+    pub fn ham_agr(&self) -> f64 {
+        round_to(
+            self.ham_agr_internal + self.ham_agr_external,
+            SIMULATION_PRECISION,
+        )
+    }
+
+    fn calc_h_internal(&self) -> f64 {
+        round_to(
+            -self.config.j / 2.
+                * self
+                    .network
+                    .spins
+                    .enumerator()
+                    .map(|(p, &s)| {
+                        let neighbour_spin_sum =
+                            self.network.get_neighbours(p).iter().sum::<i8>() as i64;
+
+                        (s as i64) * neighbour_spin_sum
+                    })
+                    .sum::<i64>() as f64,
+            SIMULATION_PRECISION,
+        )
+    }
+
+    fn calc_h_external(&self) -> f64 {
+        assert_eq!(self.network.spins.iter().count() as i64, self.network.size2 as i64);
+
+        round_to(
+            -self.config.h * self.network.spins.enumerator().map(|(_, &s)| {s} ).sum::<i8>() as f64,
+            SIMULATION_PRECISION,
+        )
+    }
+
+    fn calc_delta_h_internal(&self, p: (usize, usize)) -> f64 {
         let sk = self.network.get_spin(p) as f64;
 
-        sk * 2f64
-            * (self.config.j * (self.network.get_neighbours(p).iter().sum::<i8>() as f64)
-                + self.config.h)
+        round_to(
+            sk * 2. * self.config.j * (self.network.get_neighbours(p).iter().sum::<i8>() as f64),
+            SIMULATION_PRECISION,
+        )
+    }
 
-        // sk * 2f64 * (self.config.j * neighbour_spin_sum + self.config.h)
+    fn calc_delta_h_external(&self, p: (usize, usize)) -> f64 {
+        let sk = self.network.get_spin(p) as f64;
+
+        round_to(sk * 2. * self.config.h, SIMULATION_PRECISION)
+    }
+
+    pub fn calc_delta_h(&mut self, p: (usize, usize)) -> f64 {
+        let prev = StateSnapshot::of_simulation(&self);
+
+        let d_int = self.calc_delta_h_internal(p);
+        let d_ext = self.calc_delta_h_external(p);
+        let d_ham = round_to(d_int + d_ext, SIMULATION_PRECISION);
+
+        self.network.flip_spin(p);
+        self.ham_internal = self.calc_h_internal();
+        self.ham_external = self.calc_h_external();
+
+        assert_eq!(self.ham_internal - prev.ham_internal, d_int, "Invalid ham internal");
+        assert_eq!(self.ham_external - prev.ham_external, d_ext, "Invalid ham external");
+        assert_eq!(self.ham_internal + self.ham_external - prev.ham(), d_ham, "Invalid ham");
+
+        self.network.flip_spin(p);
+        self.ham_internal = self.calc_h_internal();
+        self.ham_external = self.calc_h_external();
+
+        d_ham
     }
 
     pub fn calc_magnetisation(&mut self) -> f64 {
@@ -143,13 +214,33 @@ impl Simulation {
     }
 
     fn evolve_spin(&mut self, p: (usize, usize), rng: &mut ChaCha20Rng) {
+        let d_int = self.calc_delta_h_internal(p);
+        let d_ext = self.calc_delta_h_external(p);
         let delta_h = self.calc_delta_h(p);
         let distortion = rng.gen::<f64>();
         let v = (-delta_h / (self.config.kb * self.config.temp)).exp();
 
-        if delta_h <= 0f64 || distortion < v {
+        let prev = StateSnapshot::of_simulation(&self);
+
+        if delta_h <= 0. || distortion < v {
             self.spin_sum += 2 * self.network.flip_spin(p) as i64;
-            self.ham += delta_h;
+            self.ham_agr_internal = round_to(self.ham_agr_internal + d_int, SIMULATION_PRECISION);
+            self.ham_agr_external = round_to(self.ham_agr_external + d_ext, SIMULATION_PRECISION);
+
+            self.ham_internal = self.calc_h_internal(); // round_to(self.ham_internal + d_int, SIMULATION_PRECISION);
+            self.ham_external = self.calc_h_external(); //round_to(self.ham_external + d_ext, SIMULATION_PRECISION);
+
+            assert_eq!(
+                self.ham_agr(),
+                self.ham(),
+                "[ρ/Δ] Ham: {}/{}, Int: {}/{}, Ext: {}/{}",
+                round!(self.ham() - prev.ham()),
+                round!(delta_h),
+                round!(self.ham_internal - prev.ham_internal),
+                round!(d_int),
+                round!(self.ham_external - prev.ham_internal),
+                round!(d_ext)
+            );
         }
     }
 
@@ -162,24 +253,37 @@ impl Simulation {
         }
     }
 
-    pub fn snapshot_hysteresis(&mut self) -> Result<Vec<f64>, Box<dyn Error>> {
+    pub fn snapshot_hysteresis(&self) -> Result<Vec<f64>, Box<dyn Error>> {
         let h = self.config.h;
         let m = self.mag();
-        self.ham = self.calc_h();
 
         send!(
             self.tx,
             self.name,
             format!(
-                "H: {}, M: {}, deg_MSE: {}, deg_avg: {}, t: {}, n: {}, E: {}",
-                h, m, self.network.deg_mse, self.network.deg_avg, self.time, self.n, self.ham
+                "H: {}, M: {}, deg_MSE: {}, deg_avg: {}, t: {}, n: {}, E: {}, αE: {}",
+                h,
+                m,
+                self.network.deg_mse,
+                self.network.deg_avg,
+                self.time,
+                self.n,
+                self.ham(),
+                self.ham_agr()
             )
         );
 
-        Ok(vec![self.time as f64, self.n as f64, h, m, self.ham])
+        Ok(vec![
+            self.time as f64,
+            self.n as f64,
+            h,
+            m,
+            self.ham(),
+            self.ham_agr(),
+        ])
     }
 
-    pub fn snapshot_phase(&mut self) -> Result<Vec<f64>, Box<dyn Error>> {
+    pub fn snapshot_phase(&self) -> Result<Vec<f64>, Box<dyn Error>> {
         let temp = self.config.temp;
         let m = self.mag();
 
@@ -187,19 +291,31 @@ impl Simulation {
             self.tx,
             self.name,
             format!(
-                "T: {}, M: {}, deg_MSE: {}, deg_avg: {}, t: {}, n: {}",
-                temp, m, self.network.deg_mse, self.network.deg_avg, self.time, self.n
+                "T: {}, M: {}, deg_MSE: {}, deg_avg: {}, t: {}, n: {}, E: {}, αE: {}",
+                temp,
+                m,
+                self.network.deg_mse,
+                self.network.deg_avg,
+                self.time,
+                self.n,
+                self.ham(),
+                self.ham_agr()
             )
         );
 
-        thread::sleep(Duration::from_nanos(1));
-
-        Ok(vec![self.time as f64, self.n as f64, temp, m, self.ham])
+        Ok(vec![
+            self.time as f64,
+            self.n as f64,
+            temp,
+            m,
+            self.ham(),
+            self.ham_agr(),
+        ])
     }
 
     pub fn is_at_equilibrium(&self, prev_state: &StateSnapshot) -> bool {
         let d_count = (prev_state.spin_sum - self.spin_sum).abs();
-        let d_ham = (prev_state.ham - self.ham).abs();
+        let d_ham = (prev_state.ham() - self.ham()).abs();
 
         let ham_relax = d_ham < f64::MIN_POSITIVE;
         let mag_relax = d_count == 2 * self.free_count
@@ -224,16 +340,21 @@ impl Simulation {
     ) -> Result<(), Box<dyn Error>> {
         let mut data_writer = Writer::from_path(data_dist_path)?;
         // Write header
-        data_writer.write_record(&["t", "n", "H", "M", "E"])?;
+        data_writer.write_record(&["t", "n", "H", "M", "E", "aE"])?;
         data_writer.flush()?;
 
-        self.calc_h();
+        self.ham_internal = self.calc_h_internal();
+        self.ham_agr_internal = self.ham_internal;
+
+        self.ham_external = self.calc_h_external();
+        self.ham_agr_external = self.ham_external;
+
         self.calc_magnetisation();
 
         let mut saw_max = false;
         let mut step_direction = 1f64;
 
-        let precision = 1e9f64;
+        let mut prev_time = 0;
         self.time = 0;
 
         loop {
@@ -270,19 +391,32 @@ impl Simulation {
                 }
             }
 
+            self.ham_internal = self.calc_h_internal();
+            self.ham_external = self.calc_h_external();
+
             // save
             data_writer.serialize(self.snapshot_hysteresis()?)?;
             // plot frame
-            let out_path = format!("{}/frames/{}.png", self.dist, self.time);
+            frame!(
+                self,
+                &format!(
+                    "H: {}, t: {} (Δt: {}), M: {}, T: {}, N: {}",
+                    self.config.h,
+                    self.time,
+                    self.time - prev_time,
+                    self.mag(),
+                    self.config.temp,
+                    self.network.size
+                )
+            );
 
-            self.network.plot_spins(
-                &out_path,
-                &format!("H: {}, t: {}", self.config.h, self.time),
-            )?;
+            prev_time = self.time;
 
             // step
-            self.config.h =
-                ((self.config.h + step_direction * config.h_step) * precision).floor() / precision;
+            self.config.h = round_to(
+                self.config.h + round_to(step_direction * config.h_step, SIMULATION_PRECISION),
+                SIMULATION_PRECISION,
+            );
         }
 
         data_writer.flush()?;
@@ -298,7 +432,7 @@ impl Simulation {
     ) -> Result<(), Box<dyn Error>> {
         let mut data_writer = Writer::from_path(data_dist_path)?;
         // Write header
-        data_writer.write_record(&["t", "n", "T", "M", "E"])?;
+        data_writer.write_record(&["t", "n", "T", "M", "E", "aE"])?;
         data_writer.flush()?;
 
         for x in 0..self.network.size {
@@ -307,7 +441,12 @@ impl Simulation {
             }
         }
 
-        self.calc_h();
+        self.ham_internal = self.calc_h_internal();
+        self.ham_agr_internal = self.ham_internal;
+
+        self.ham_external = self.calc_h_external();
+        self.ham_agr_external = self.ham_external;
+
         self.calc_magnetisation();
 
         while self.mag() >= 0. {
@@ -330,7 +469,7 @@ impl Simulation {
                             "T: {}, t: {}, ΔH: {}, ΔM: {}, δM: {}",
                             self.config.temp,
                             self.time,
-                            (prev_state.ham - self.ham).abs(),
+                            (prev_state.ham() - self.ham()).abs(),
                             (prev_state.mag - self.mag()).abs(),
                             (self.free_count as f64 / self.network.size2)
                         ),
@@ -346,7 +485,7 @@ impl Simulation {
             data_writer.serialize(self.snapshot_phase()?)?;
 
             // plot frame
-            let out_path = format!("{}/frames/{}.png", self.dist, self.time);
+            let out_path = format!("{}/frames/{:016}.png", self.dist, self.time);
 
             self.network.plot_spins(
                 &out_path,
@@ -354,7 +493,7 @@ impl Simulation {
             )?;
 
             // step
-            self.config.temp += config.t_step;
+            self.config.temp = round_to(self.config.temp + config.t_step, SIMULATION_PRECISION);
         }
 
         data_writer.flush()?;

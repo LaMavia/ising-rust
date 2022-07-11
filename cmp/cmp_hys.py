@@ -8,6 +8,7 @@ import pathlib
 import plot_constants
 import json
 from dataclasses import dataclass, field
+from collections.abc import Iterable
 
 def dict_of_path(path: str) -> dict:
   xs = path.split("/")
@@ -25,6 +26,7 @@ class DataPoint:
   hs: list[float]
   ms: list[float]
   es: list[float]
+  esa: list[float]
   desc: dict
 
 @dataclass
@@ -62,6 +64,7 @@ def process_data(desc_paths: list[str]) -> list[Group]:
         ts=df['t'],
         ns=df['n'],
         es=df['E'],
+        esa=df['aE'],
         desc=desc
       )
     )
@@ -75,7 +78,9 @@ def plot(group: Group, ax: plt.Axes, colour: list[float], name: str, label: str)
 
   for dp in group.data:
     linestyle, alpha = ('--', 0.5) if dp.lattice_type == 'regular' else ('-', 1)
-    ax.plot(dp.hs, dp.ms, linestyle=linestyle, color=(*colour, alpha))
+    ax.plot(dp.hs, dp.ms, linestyle=linestyle, color=(*colour, alpha), label=f"""{dp.lattice_type}""")
+
+  ax.legend(fontsize=18)
 
 def plot_energy(group: Group, ax: plt.Axes, colour: list[float], name: str, label: str):
   size = float(group.data[0].desc['config']['size'])**2
@@ -94,12 +99,40 @@ def plot_energy(group: Group, ax: plt.Axes, colour: list[float], name: str, labe
       [t * t_ratio for t in dp.ts], [e / size for e in dp.es], 
       linestyle=linestyle, 
       color=(*colour, alpha),
-      label=f"""$t' = {(1/t_ratio):.3f}t$"""
+      label=f"""[{dp.lattice_type}] $t' = {(1/t_ratio):.3f}t$"""
       )
 
-    ax.legend()
+    ax.plot(
+      [t * t_ratio for t in dp.ts], [e / size for e in dp.esa], 
+      linestyle=linestyle, 
+      color=(*colour, alpha),
+      label=f"""[{dp.lattice_type} $aE$] $t' = {(1/t_ratio):.3f}t$"""
+      )
+
+    ax.legend(fontsize=18)
+
+def plot_energy_h(group: Group, ax: plt.Axes, colour: list[float], name: str, label: str):
+  size = float(group.data[0].desc['config']['size'])**2
+
+  ax.set_xlabel(r'$H$')
+  ax.set_ylabel(r'$\mathcal{H}$')
+  ax.set_title(label, fontsize=16)
+ 
+  for dp in group.data:
+    linestyle, alpha = ('--', 0.5) if dp.lattice_type == 'regular' else ('-', 1)
+    ax.plot(
+      dp.hs, [e / size for e in dp.es], 
+      linestyle=linestyle, 
+      color=(*colour, alpha),
+      label=f"""{dp.lattice_type}"""
+      )
+
+    ax.legend(fontsize=18)
 
 def flatten(xss):
+  if not isinstance(xss, Iterable):
+    return [xss]
+
   try:
     return [x for xs in xss for x in xs]
   except:
@@ -123,11 +156,11 @@ def main(paths):
   n_rows = len(seeds)
   n_cols = len(temps)
 
-  figs = [plt.figure(figsize=(n_cols * col_size, n_rows * row_size), dpi=300) for _ in range(2)]
-  fig_hys, fig_energy = figs
+  figs = [plt.figure(figsize=(n_cols * col_size, n_rows * row_size), dpi=300) for _ in range(3)]
+  fig_hys, fig_energy, fig_energy_h = figs
 
   ax_groups = [flatten(fig.subplots(nrows=n_rows, ncols=n_cols)) for fig in figs]
-  axes_hys, axes_energy = ax_groups
+  axes_hys, axes_energy, axes_energy_h = ax_groups
 
   for axes in ax_groups:
     for ax in axes:
@@ -144,6 +177,7 @@ def main(paths):
     colour = colours[colour_keys[i_colour % len(colour_keys)]]
     plot(group=g, ax=axes_hys[i], colour=colour, name=i, label=label)
     plot_energy(group=g, ax=axes_energy[i], colour=colour, name=i, label=label)
+    plot_energy_h(group=g, ax=axes_energy_h[i], colour=colour, name=i, label=label)
 
     if size == None or h_step == None:
       size = size or g.data[0].desc['config']['size']
@@ -151,7 +185,7 @@ def main(paths):
 
   # ax.legend(loc='lower center', bbox_to_anchor=(0.5, -len(paths)/15))  
   for i, fig in enumerate(figs):
-    fig.suptitle(f'dashed - regular, solid - irregular\nsize={size} $\\Delta H$={h_step}', fontsize=18)
+    fig.suptitle(f'N={size} $\\Delta H$={h_step}\n\n', fontsize=18)
     fig.tight_layout()
 
     fig.savefig(f'figures/plot_hys{i}.png', dpi=300)

@@ -1,4 +1,4 @@
-use std::thread::{spawn, JoinHandle};
+use std::thread::{self, spawn, JoinHandle};
 
 #[derive(Debug)]
 pub struct Child {
@@ -9,11 +9,11 @@ pub struct Child {
 }
 
 impl Child {
-    pub fn make<F: FnOnce() -> () + Send + 'static>(name: String, f: F) -> Self {
+    pub fn make<F: FnOnce() -> () + Send + 'static>(name: &String, f: F) -> Self {
         Child {
-            name,
+            name: name.to_owned(),
             msg: "<starting>".to_string(),
-            thread_handle: Box::new(spawn(f)),
+            thread_handle: Box::new(thread::Builder::new().name(name.to_owned()).spawn(f).unwrap()),
             done: false,
         }
     }

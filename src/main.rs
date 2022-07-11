@@ -4,9 +4,10 @@ mod descriptor;
 mod matrix;
 mod network;
 mod simulation;
+mod mathy;
 
 use std::sync::mpsc::{self, Sender};
-use std::thread;
+use std::{thread};
 use std::time::Duration;
 use std::{env, error::Error, fs, path::Path};
 
@@ -62,6 +63,7 @@ fn make_data_path_hys(
 fn prepare_data_path(data_dir: &String) -> Result<String, Box<dyn Error>> {
     let data_path_str = format!("{}/data.csv", data_dir);
 
+    fs::remove_dir_all(&data_dir).unwrap_or(());
     fs::create_dir_all(&data_dir)?;
     fs::create_dir_all(&format!("{}/frames/", data_dir))?;
 
@@ -236,7 +238,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             format!("{}, seed={}, T={}", network_type.to_string(), seed, temp);
                         let tx_ = tx.clone();
 
-                        children.push(Child::make(name.to_owned(), move || {
+                        children.push(Child::make(&name.to_owned(), move || {
                             run_hysteresis(seed, &args, network_type, temp.to_owned(), tx_, name)
                                 .unwrap();
                         }));
@@ -261,7 +263,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         let tx_ = tx.clone();
                         let name = format!("{}, {}", network_type.to_string(), rand_seed);
 
-                        children.push(Child::make(name.to_owned(), move || {
+                        children.push(Child::make(&name.to_owned(), move || {
                             run_phase(rand_seed, &args, network_type, eq_steps, -1., tx_, name)
                                 .unwrap();
                         }));
@@ -271,32 +273,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             Ok(simulation_type.to_string())
         }
-        /* Some(simulation_type) if simulation_type.as_str() == "relax" => {
-            for network_type in vec![NetworkType::Irregular] {
-                let args = cli::ArgsPhase::parse_from(env::args().skip(1));
-
-                for rand_seed in args.seeds {
-                    let args = cli::ArgsPhase::parse_from(env::args().skip(1));
-
-                    for eq_steps in args.eq_steps {
-                        let args = cli::ArgsPhase::parse_from(env::args().skip(1));
-
-                        children.push(thread::spawn(move || {
-                            match run_relax(rand_seed, &args, network_type, eq_steps) {
-                                Err(e) => eprintln!("{}", e),
-                                Ok(p) => {
-                                    print!("{} ", p)
-                                }
-                            }
-                        }));
-                    }
-                }
-            }
-
-            print!("{} ", simulation_type);
-
-            Ok("".to_string())
-        } */
+        
         x => {
             eprintln!("unknown simulation type {:?}", x);
             Err(Box::new(ArgError {}))

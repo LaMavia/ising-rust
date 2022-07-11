@@ -5,7 +5,7 @@ base_dist="$1"
 output_dist="$base_dist/anim.mp4"
 framerate=${2:-25}
 
-cat $(find "$base_dist/frames" -name '*.png' | sort -V) \
+if cat $(find "$base_dist/frames" -name '*.png' | sort -V) \
   | ffmpeg \
     -framerate "$framerate" \
     -y -i - \
@@ -13,6 +13,10 @@ cat $(find "$base_dist/frames" -name '*.png' | sort -V) \
     -profile:v high \
     -crf 20 \
     -pix_fmt yuv420p \
-    "$output_dist" 1>&2
+    "$output_dist" 1>&2 
+then
+    rm -r "$base_dist/frames"
+fi
+
 
 printf "%s\n" "$(realpath "$output_dist")"

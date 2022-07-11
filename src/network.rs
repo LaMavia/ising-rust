@@ -6,6 +6,16 @@ use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
 use serde::Serialize;
 
+#[macro_export]
+macro_rules! frame {
+    ($self:ident, $title:expr) => {
+        $self.network.plot_spins(
+            &format!("{}/frames/{:016}.png", $self.dist, $self.time),
+            $title,
+        ).unwrap();
+    };
+}
+
 #[derive(Debug, Clone, Copy, Serialize)]
 pub enum NetworkType {
     Regular,
@@ -60,6 +70,17 @@ impl Network {
         }
 
         m
+    }
+
+    fn validate_network(&self) {
+        for (p, ns) in self.lattice.enumerator() {
+            let i = index_of_pos(self.size, p);
+
+            for &n in ns {
+                let ns_ = self.lattice[n].to_owned();
+                assert!(ns_.contains(&i), "mismatched neighbours: {} {}", i, n);
+            }
+        }
     }
 
     fn make_lattice_regular(size: usize, rng: &mut ChaCha20Rng) -> Matrix<Vec<usize>> {
@@ -188,6 +209,8 @@ impl Network {
 
         m.deg_mse = m.get_deg_mse(4f64);
         m.deg_avg = m.get_avg_deg();
+
+        m.validate_network();
 
         m
     }
