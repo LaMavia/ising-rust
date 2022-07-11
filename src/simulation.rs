@@ -16,6 +16,9 @@ macro_rules! round {
     ($x:expr) => {
         round_to($x, SIMULATION_PRECISION)
     };
+    ($target:expr, +, $($value: expr),+) => {
+        $target = round_to($target + $( $value )+, SIMULATION_PRECISION)
+    }
 }
 
 #[derive(Debug)]
@@ -60,6 +63,7 @@ pub struct Simulation {
     pub tx: Sender<ChildMsg>,
     pub dist: String,
     pub free_count: i64,
+    action_log: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -113,6 +117,7 @@ impl Simulation {
             n: 0,
             dist,
             free_count: 0,
+            action_log: vec![],
         };
 
         s.free_count = s
@@ -162,10 +167,13 @@ impl Simulation {
     }
 
     fn calc_h_external(&self) -> f64 {
-        assert_eq!(self.network.spins.iter().count() as i64, self.network.size2 as i64);
+        assert_eq!(
+            self.network.spins.iter().count() as i64,
+            self.network.size2 as i64
+        );
 
         round_to(
-            -self.config.h * self.network.spins.enumerator().map(|(_, &s)| {s} ).sum::<i8>() as f64,
+            -self.config.h * self.network.spins.enumerator().map(|(_, &s)| s).sum::<i8>() as f64,
             SIMULATION_PRECISION,
         )
     }
@@ -179,30 +187,29 @@ impl Simulation {
         )
     }
 
-    fn calc_delta_h_external(&self, p: (usize, usize)) -> f64 {
-        let sk = self.network.get_spin(p) as f64;
+    fn calc_delta_h_external(&mut self, p: (usize, usize)) -> f64 {
+        // let sk = self.network.get_spin(p) as f64;
 
-        round_to(sk * 2. * self.config.h, SIMULATION_PRECISION)
+        let prev = StateSnapshot::of_simulation(&self);
+
+        self.network.flip_spin(p);
+
+        let d = round!(round!(self.calc_h_external()) - prev.ham_external);
+
+        self.network.flip_spin(p);
+
+        d
+        // round_to(sk * 2. * self.config.h, SIMULATION_PRECISION)
     }
 
     pub fn calc_delta_h(&mut self, p: (usize, usize)) -> f64 {
-        let prev = StateSnapshot::of_simulation(&self);
+        // let prev = StateSnapshot::of_simulation(&self);
 
         let d_int = self.calc_delta_h_internal(p);
         let d_ext = self.calc_delta_h_external(p);
         let d_ham = round_to(d_int + d_ext, SIMULATION_PRECISION);
 
-        self.network.flip_spin(p);
-        self.ham_internal = self.calc_h_internal();
-        self.ham_external = self.calc_h_external();
-
-        assert_eq!(self.ham_internal - prev.ham_internal, d_int, "Invalid ham internal");
-        assert_eq!(self.ham_external - prev.ham_external, d_ext, "Invalid ham external");
-        assert_eq!(self.ham_internal + self.ham_external - prev.ham(), d_ham, "Invalid ham");
-
-        self.network.flip_spin(p);
-        self.ham_internal = self.calc_h_internal();
-        self.ham_external = self.calc_h_external();
+        // round!(self.ham_agr_internal, + , self.calc_delta_h_internal(p));
 
         d_ham
     }
@@ -213,34 +220,79 @@ impl Simulation {
         self.mag()
     }
 
+    fn assert_correctness(
+        &self,
+        prev: &StateSnapshot,
+        p: (usize, usize),
+        d_int: f64,
+        d_ext: f64,
+        d_ham: f64,
+    ) {
+        assert_eq!(
+            round!(self.ham_internal - prev.ham_internal),
+            d_int,
+            "Invalid ham internal {:?} (={}) {:?}; logs: {:?}",
+            p,
+            self.network.get_spin(p),
+            self.network.get_neighbours(p),
+            self.action_log
+        );
+        assert_eq!(
+            round!(self.ham_external - prev.ham_external),
+            d_ext,
+            "Invalid ham external {:?} (={}) {:?}; Σ: {}, Σprev: {}; logs: {:?}",
+            p,
+            self.network.get_spin(p),
+            self.network.get_neighbours(p),
+            self.network.spins.iter().sum::<i8>(),
+            prev.spin_sum,
+            self.action_log
+                .iter()
+                .fold("".to_string(), |u, l| { format!("{}\n{}", u, l) })
+        );
+        assert_eq!(
+            round!(self.ham() - prev.ham()),
+            d_ham,
+            "Invalid ham: {:?} (={}) {:?}; logs: {:?}",
+            p,
+            self.network.get_spin(p),
+            self.network.get_neighbours(p),
+            self.action_log
+        );
+    }
+
     fn evolve_spin(&mut self, p: (usize, usize), rng: &mut ChaCha20Rng) {
         let d_int = self.calc_delta_h_internal(p);
         let d_ext = self.calc_delta_h_external(p);
-        let delta_h = self.calc_delta_h(p);
+        let d_ham = self.calc_delta_h(p);
         let distortion = rng.gen::<f64>();
-        let v = (-delta_h / (self.config.kb * self.config.temp)).exp();
+        let v = (-d_ham / (self.config.kb * self.config.temp)).exp();
 
         let prev = StateSnapshot::of_simulation(&self);
 
-        if delta_h <= 0. || distortion < v {
+        if d_ham <= 0. || distortion < v {
             self.spin_sum += 2 * self.network.flip_spin(p) as i64;
+
             self.ham_agr_internal = round_to(self.ham_agr_internal + d_int, SIMULATION_PRECISION);
             self.ham_agr_external = round_to(self.ham_agr_external + d_ext, SIMULATION_PRECISION);
 
             self.ham_internal = self.calc_h_internal(); // round_to(self.ham_internal + d_int, SIMULATION_PRECISION);
-            self.ham_external = self.calc_h_external(); //round_to(self.ham_external + d_ext, SIMULATION_PRECISION);
+            self.ham_external = self.calc_h_external(); // round_to(self.ham_external + d_ext, SIMULATION_PRECISION);
 
-            assert_eq!(
-                self.ham_agr(),
-                self.ham(),
-                "[ρ/Δ] Ham: {}/{}, Int: {}/{}, Ext: {}/{}",
+            self.action_log.push(format!(
+                "Flipping {:?} {} -> {} ([ρ/Δ] Ham: {}/{}, Int: {}/{}, Ext: {}/{})",
+                p,
+                -self.network.get_spin(p),
+                self.network.get_spin(p),
                 round!(self.ham() - prev.ham()),
-                round!(delta_h),
+                round!(d_ham),
                 round!(self.ham_internal - prev.ham_internal),
                 round!(d_int),
-                round!(self.ham_external - prev.ham_internal),
+                round!(self.ham_external - prev.ham_external),
                 round!(d_ext)
-            );
+            ));
+
+            self.assert_correctness(&prev, p.to_owned(), d_int, d_ext, d_ham);
         }
     }
 
@@ -392,7 +444,12 @@ impl Simulation {
             }
 
             self.ham_internal = self.calc_h_internal();
+            self.ham_agr_internal = self.ham_internal;
+
             self.ham_external = self.calc_h_external();
+            self.ham_agr_external = self.ham_external;
+
+            self.calc_magnetisation();
 
             // save
             data_writer.serialize(self.snapshot_hysteresis()?)?;
