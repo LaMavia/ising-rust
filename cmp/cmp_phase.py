@@ -43,12 +43,9 @@ class ParamRegister:
 
   def __str__(self):
     return f"""$\\langle T_C \\rangle={
-    np.average(self.tc)
-    }, \\langle\\beta\\rangle={
-      np.average(self.beta)
-    }, \\langle M_0 \\rangle={
-      np.average(self.m0)
-    }$"""
+    np.average(self.tc):.3f}, \\langle\\beta\\rangle={
+      np.average(self.beta):.3f}, \\langle M_0 \\rangle={
+      np.average(self.m0):.3f}$"""
 
   def __getitem__(self, item):
     return getattr(self, item)
@@ -155,7 +152,7 @@ def plot_main(group: Group, ax: plt.Axes, colour: list[float], name: str, bounds
       min_curve.append(inf)
 
   # set labels
-  ax.set_xlabel('$k_BT/J$')
+  ax.set_xlabel('$T$')
   ax.set_ylabel('$M$')
 
   # fin the average curve
@@ -166,7 +163,7 @@ def plot_main(group: Group, ax: plt.Axes, colour: list[float], name: str, bounds
   ax.scatter(ts, max_curve, color=(*colour, 0.05), marker='.')
 
   # plot the average curve
-  ax.plot(ts_between, ms_between, color=(*colour, 0.9))
+  ax.scatter(ts_between, ms_between, color=(*colour, 0.9), marker='.')
 
   # plot the fitted line
   ts_fit, ms_fit, fit_params = fit_plot(ts_between, ms_between, bounds)
@@ -194,7 +191,7 @@ def plot_energy(ax: plt.Axes, group: Group, colour: list[float]):
   data: list[DataPoint] = group.data
 
   ax.set_xlabel(r'$t$ [MC sweep]')
-  ax.set_ylabel(r'$\mathcal{H}$')
+  ax.set_ylabel(r'$\langle\mathcal{H}\rangle$')
 
   bin_density = 0.02
   min_curve, max_curve = [], []
@@ -220,21 +217,76 @@ def plot_energy(ax: plt.Axes, group: Group, colour: list[float]):
   ax.scatter(
     ts,
     min_curve,
-    color=(*colour, 0.02),
+    color=(*colour, 0.1),
     marker='.'
   )
   ax.scatter(
     ts,
     max_curve,
-    color=(*colour, 0.02),
-    marker='.'
+    color=(*colour, 0.1),
+    marker='.',
+    label=f'{group.label} extrema'
   )
   ax.scatter(
     ts_between,
     es_between,
     color=(*colour, 0.5),
     marker='o',
-    label=group.label
+    label=f'{group.label} average'
+  )
+
+"""
+Plot energy of temperature
+"""
+def plot_energy_temp(ax: plt.Axes, group: Group, colour: list[float]):
+  def flatten(xss):
+    return [x for xs in xss for x in xs]
+
+  data: list[DataPoint] = group.data
+
+  ax.set_xlabel(r'$T$')
+  ax.set_ylabel(r'$\langle\mathcal{H}\rangle$')
+
+  bin_density = 0.02
+  min_curve, max_curve = [], []
+
+  raw_bins = bin_up(
+    ts_raw := flatten([zip(dp.ts, dp.energy) for dp in data]), 
+    bins=round(bin_density*len(ts_raw))
+  )
+  bins, ees = uzip(
+    [
+      b for b in raw_bins if len(b[1]) > 0
+    ]
+  )
+
+  ts = [(l + r)/2 for l,r in bins]
+
+  for es in ees:
+    min_curve.append(min(es))
+    max_curve.append(max(es))
+  
+  ts_between, es_between = fit_in_between(ts, min_curve, max_curve)
+  
+  ax.scatter(
+    ts,
+    min_curve,
+    color=(*colour, 0.1),
+    marker='.'
+  )
+  ax.scatter(
+    ts,
+    max_curve,
+    color=(*colour, 0.1),
+    marker='.',
+    label=f'{group.label} extrema'
+  )
+  ax.scatter(
+    ts_between,
+    es_between,
+    color=(*colour, 0.5),
+    marker='o',
+    label=f'{group.label} average'
   )
 
 def tagged_box(ax: plt.Axes, xs: list[float], positions: list[Any], labels: list[str]):
@@ -258,7 +310,7 @@ def tagged_box(ax: plt.Axes, xs: list[float], positions: list[Any], labels: list
 Plot param distribution
 """
 def plot_dist(group: Group, ax: plt.Axes, name: str, reg: dict[str, ParamRegister], field: str, ylabel: str):
-  ax.set_xlabel(r'rodzaj sieci')
+  ax.set_xlabel(r'lattice type')
   ax.set_ylabel(ylabel)
   tagged_box(
     ax=ax, 
@@ -267,7 +319,7 @@ def plot_dist(group: Group, ax: plt.Axes, name: str, reg: dict[str, ParamRegiste
     labels=[group.label])
 
 def plot_deg_dist(group: Group, ax: plt.Axes, name: str):
-  ax.set_xlabel(r'rodzaj sieci')
+  ax.set_xlabel(r'lattice type')
   ax.set_ylabel(r'$\langle k \rangle$')
   tagged_box(
     ax=ax,
@@ -284,13 +336,13 @@ def plot_relax(group: Group, ax: plt.Axes, colour: list[float]):
   for dp in group.data:
     ns.extend(np.log10(dp.n))
 
-  xs, ys = uzip(bin_up(ns, mn=0, mx=4, bins=20))
+  xs, ys = uzip(bin_up(ns, mn=0, mx=5.5, bins=20))
 
-  ax.set_xlabel(r'log(eq_steps)')
-  ax.set_ylabel('liczba punktów')
+  ax.set_xlabel(r'log(equilibrium steps)')
+  ax.set_ylabel(r'log(number of points)')
   ax.scatter(
     [x[0] for x in xs],
-    [len(y) for y in ys],
+    [0 if len(y) == 0 else np.log10(len(y)) for y in ys],
     color=(*colour, 0.8),
     label=group.label
   )
@@ -298,22 +350,22 @@ def plot_relax(group: Group, ax: plt.Axes, colour: list[float]):
 def main(paths: list[str]):
   plt.rcParams.update({'lines.markeredgewidth': 1})
   plt.rcParams['text.usetex'] = True
-  plt.rcParams['axes.labelsize'] = 16
+  plt.rcParams['axes.labelsize'] = 18
 
   colours = plot_constants.plot_colours
   colour_keys = list(colours.keys())
 
   bounds = (1e-12, 5)
 
-  figs = [plt.figure(figsize=(13,8), dpi=300) for _ in range(7)]
-  fig_main, fig_dist, fig_energy, fig_relax, fig_dist_beta, fig_dist_m0, fig_dist_deg = figs
-  axs = [fig.subplots() for fig in figs]
+  figs = [plt.figure(figsize=(13,8), dpi=300) for _ in range(8)]
+  fig_main, fig_dist, fig_energy, ax_energy_temp, fig_relax, fig_dist_beta, fig_dist_m0, fig_dist_deg = figs
 
-  ax_main, ax_dist, ax_energy, ax_relax, ax_dist_beta, ax_dist_m0, ax_dist_deg = axs
+  axs = [fig.subplots() for fig in figs]
+  ax_main, ax_dist, ax_energy, ax_energy_temp, ax_relax, ax_dist_beta, ax_dist_m0, ax_dist_deg = axs
 
   for ax in axs:
     ax.grid(which='both')
-    ax.tick_params(which='both', labelsize=14)
+    ax.tick_params(which='both', labelsize=16)
 
   groups = [Group(pattern='/regular/', label='regular'), Group(pattern='/irregular/', label='irregular')]
 
@@ -343,13 +395,15 @@ def main(paths: list[str]):
       df = pd.read_csv(path)
       desc = group.descs[i]
 
+      size2 = desc['config']['size']**2
+
       group.data.append(DataPoint(
         ts=df['T'], 
         ms=df['M'], 
         deg_avg=desc['deg_avg'], 
         deg_mse=desc['deg_mse'], 
         seed=desc['seed'], 
-        energy=df['E'], 
+        energy=[e / size2 for e in df['E']], 
         time=df['t'], 
         n=df['n'],
         desc=desc))
@@ -388,6 +442,12 @@ def main(paths: list[str]):
 
     plot_energy(
       ax=ax_energy, 
+      group=group, 
+      colour=colour
+    )
+
+    plot_energy_temp(
+      ax=ax_energy_temp, 
       group=group, 
       colour=colour
     )

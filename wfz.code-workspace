@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "../../latex/wfz"
+		},
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"ocaml.sandbox": {
+			"kind": "opam",
+			"switch": "4.14.0+trunk"
+		}
+	}
+}
